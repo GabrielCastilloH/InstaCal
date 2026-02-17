@@ -10,6 +10,13 @@ Simply type something like **"Lunch with Sarah tomorrow at noon"** and InstaCal 
 - Google Calendar integration
 - AI-powered date, time, and event detail parsing
 
+## Tech Stack
+
+- **Frontend**: React + TypeScript
+- **Build Tool**: Vite
+- **Platform**: Chrome Extension (Manifest V3)
+
+
 ## Installation
 
 > Coming soon — the extension is currently in development.
