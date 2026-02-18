@@ -2,7 +2,7 @@
 
 .popup-container {
   width: 320px;
-  height: 320px;
+  height: 280px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -39,6 +39,7 @@ h1 {
   font-size: 14px;
   font-family: inherit;
   color: var(--dark-grey-azure);
+  caret-color: var(--dark-grey-azure);
   background-color: var(--light-azure);
   outline: none;
   resize: none;
@@ -51,4 +52,23 @@ h1 {
 
 .event-input:focus {
   border-color: var(--dark-azure);
+}
+
+.add-event-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 9px 0;
+  background-color: var(--med-azure);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.add-event-btn:hover {
+  background-color: var(--dark-azure);
 }

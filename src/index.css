@@ -1,9 +1,17 @@
 @import './styles/colors.css';
 
+@font-face {
+  font-family: 'Sanchez';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Sanchez-Regular.ttf') format('truetype');
+}
+
 body {
   margin: 0;
   padding: 0;
   width: 320px;
-  height: 320px;
-  background-color: #ffffff;
+  height: 280px;
+  background-color: #FCFDFE;
 }
