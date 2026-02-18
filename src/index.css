@@ -1,7 +1,9 @@
+@import './styles/colors.css';
+
 body {
   margin: 0;
   padding: 0;
-  width: 300px;
-  height: auto;
-  min-height: 100px;
+  width: 320px;
+  height: 320px;
+  background-color: #ffffff;
 }
