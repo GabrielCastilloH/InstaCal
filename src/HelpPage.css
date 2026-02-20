@@ -37,10 +37,11 @@
   background-color: var(--light-azure);
 }
 
-.help-logo {
-  height: 36px;
-  width: auto;
-  margin: 0 0 6px;
+.help-title {
+  margin: 0 0 14px;
+  font-family: 'Sanchez', serif;
+  color: var(--dark-azure);
+  text-align: center;
 }
 
 .help-tagline {

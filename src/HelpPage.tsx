@@ -1,4 +1,3 @@
-import logoLarge from './assets/logo-large.svg'
 import './HelpPage.css'
 
 interface HelpPageProps {
@@ -15,9 +14,9 @@ export default function HelpPage({ onBack }: HelpPageProps) {
         </svg>
       </button>
 
-      <img src={logoLarge} alt="InstaCal" className="help-logo" />
+      <h1 className="help-title">Support</h1>
 
-      <p className="help-tagline">AI-powered event scheduling</p>
+     {/* <p className="help-tagline">AI-powered event scheduling</p> */}
 
       <div className="help-section">
         <div className="help-step">
