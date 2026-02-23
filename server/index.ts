@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import express, { Request, Response } from 'express'
 import cors from 'cors'
+import { parseEventWithAI, ParsedEvent } from './openai'
 
 const app = express()
 const PORT = process.env.PORT ?? 3000
@@ -17,32 +18,23 @@ interface ParseRequestBody {
   now?: string
 }
 
-interface ParsedEvent {
-  title: string
-  start: string
-  end: string
-  location: string | null
-  description: string | null
-}
-
-app.post('/parse', (req: Request<object, ParsedEvent, ParseRequestBody>, res: Response) => {
-  const { text } = req.body
+app.post('/parse', async (req: Request<object, ParsedEvent | { error: string }, ParseRequestBody>, res: Response) => {
+  const { text, now } = req.body
 
   if (!text || text.trim().length === 0) {
     res.status(400).json({ error: 'text is required' })
     return
   }
 
-  // Stub — OpenAI integration goes here
-  const stub: ParsedEvent = {
-    title: 'Stub Event',
-    start: '2026-02-25T18:00:00',
-    end: '2026-02-25T19:00:00',
-    location: null,
-    description: null,
-  }
+  const nowISO = now ?? new Date().toISOString()
 
-  res.json(stub)
+  try {
+    const event = await parseEventWithAI({ text: text.trim(), nowISO })
+    res.json(event)
+  } catch (err) {
+    console.error('[/parse] error:', err)
+    res.status(500).json({ error: 'parse failed' })
+  }
 })
 
 app.listen(PORT, () => {

@@ -1,3 +1,5 @@
+import OpenAI from 'openai'
+
 export type ParsedEvent = {
   title: string
   start: string
@@ -6,18 +8,72 @@ export type ParsedEvent = {
   description: string | null
 }
 
+const SYSTEM_PROMPT = `You are a calendar parsing assistant.
+The user will describe a calendar event in natural language.
+The current date and time is: {NOW_ISO}
+
+Extract the event and return ONLY a valid JSON object — no markdown, no explanation — with exactly these fields:
+  "title":       string   — short event title
+  "start":       string   — ISO-8601 local datetime, no timezone offset (e.g. "2026-03-10T14:00:00")
+  "end":         string   — ISO-8601 local datetime, no timezone offset
+  "location":    string | null
+  "description": string | null
+
+Rules:
+- Resolve relative expressions ("tomorrow", "next Monday", "in 3 days") using the current date above.
+- If no end time is provided, set end = start + 60 minutes.
+- If only a date is provided (no time), set start time to 09:00 and end time to 10:00.
+- If no year is mentioned, assume the nearest future occurrence.
+- Output ONLY the JSON object. Any other text will cause an error.`
+
+function getClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not set in environment')
+  return new OpenAI({ apiKey })
+}
+
+function isValidParsedEvent(obj: unknown): obj is ParsedEvent {
+  if (typeof obj !== 'object' || obj === null) return false
+  const e = obj as Record<string, unknown>
+  return (
+    typeof e.title === 'string' &&
+    typeof e.start === 'string' &&
+    typeof e.end === 'string' &&
+    (e.location === null || typeof e.location === 'string') &&
+    (e.description === null || typeof e.description === 'string')
+  )
+}
+
 export async function parseEventWithAI(input: {
   text: string
   nowISO: string
 }): Promise<ParsedEvent> {
-  // Mock — OpenAI call goes here
-  console.log(`[parseEventWithAI] text="${input.text}" now="${input.nowISO}"`)
+  const client = getClient()
 
-  return {
-    title: 'Stub Event',
-    start: '2026-02-25T18:00:00',
-    end: '2026-02-25T19:00:00',
-    location: null,
-    description: null,
+  const systemPrompt = SYSTEM_PROMPT.replace('{NOW_ISO}', input.nowISO)
+
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    temperature: 0,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: input.text },
+    ],
+  })
+
+  const raw = response.choices[0]?.message?.content ?? ''
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new Error(`OpenAI returned invalid JSON. Raw output: ${raw}`)
   }
+
+  if (!isValidParsedEvent(parsed)) {
+    throw new Error(`OpenAI response missing required fields. Raw output: ${raw}`)
+  }
+
+  return parsed
 }
