@@ -21,8 +21,13 @@
         "storage"
     ],
     "host_permissions": [
-        "https://www.googleapis.com/*"
+        "https://www.googleapis.com/*",
+        "http://localhost:3000/*"
     ],
+    "oauth2": {
+        "client_id": "358570122614-6fvgvckkne5e8bcbvgptup5uc4gh3fot.apps.googleusercontent.com",
+        "scopes": ["https://www.googleapis.com/auth/calendar.events"]
+    },
     "background": {
         "service_worker": "background.js"
     }

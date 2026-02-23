@@ -1,17 +1,40 @@
 import { useEffect, useRef, useState } from 'react'
 import logoLarge from './assets/logo-large.svg'
 import HelpPage from './HelpPage'
+import { parseEvent } from './services/parseEvent'
+import { getAuthTokenInteractive } from './services/auth'
+import { createCalendarEvent } from './services/calendar'
 import './App.css'
 
 function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [showHelp, setShowHelp] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | undefined>()
 
   useEffect(() => {
     if (!showHelp) {
       inputRef.current?.focus()
     }
   }, [showHelp])
+
+  async function handleAddEvent() {
+    const text = inputRef.current?.value.trim() ?? ''
+    if (!text) return
+
+    setStatus('loading')
+    setErrorMessage(undefined)
+
+    try {
+      const event = await parseEvent(text)
+      const token = await getAuthTokenInteractive()
+      await createCalendarEvent(token, event)
+      setStatus('success')
+    } catch (err) {
+      setStatus('error')
+      setErrorMessage((err as Error).message)
+    }
+  }
 
   if (showHelp) {
     return <HelpPage onBack={() => setShowHelp(false)} />
@@ -32,7 +55,28 @@ function App() {
         className="event-input"
         placeholder="Dinner with Gabe this Monday at 6"
       />
-      <button className="add-event-btn">Add Event</button>
+      <button
+        className="add-event-btn"
+        disabled={status === 'loading'}
+        onClick={handleAddEvent}
+      >
+        {status === 'loading' ? 'Adding…' : 'Add Event'}
+      </button>
+
+      {status === 'loading' && (
+        <p className="status-msg status-loading">Adding to Calendar…</p>
+      )}
+      {status === 'success' && (
+        <p className="status-msg status-success">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Added to Calendar
+        </p>
+      )}
+      {status === 'error' && (
+        <p className="status-msg status-error">{errorMessage ?? 'Something went wrong.'}</p>
+      )}
     </div>
   )
 }

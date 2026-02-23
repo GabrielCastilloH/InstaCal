@@ -93,6 +93,33 @@
   transition: background-color 0.15s;
 }
 
-.add-event-btn:hover {
+.add-event-btn:hover:not(:disabled) {
   background-color: var(--dark-azure);
+}
+
+.add-event-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.status-msg {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  text-align: center;
+}
+
+.status-loading {
+  color: var(--grey-azure);
+}
+
+.status-success {
+  color: var(--dark-azure);
+  font-weight: 600;
+}
+
+.status-error {
+  color: #c0392b;
 }
