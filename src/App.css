@@ -1,0 +1,125 @@
+@import './styles/colors.css';
+
+.popup-container {
+  position: relative;
+  width: 320px;
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 16px 20px 20px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.gear-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--grey-azure);
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.gear-btn:hover {
+  color: var(--dark-azure);
+  background-color: var(--light-azure);
+}
+
+.logo {
+  height: 44px;
+  width: auto;
+  margin: 0;
+}
+
+.subheading {
+  margin: 6px 0 20px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--grey-azure);
+  text-align: center;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.event-input {
+  width: 100%;
+  flex: 1;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1.5px solid var(--med-azure);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--dark-grey-azure);
+  caret-color: var(--dark-grey-azure);
+  background-color: var(--light-azure);
+  outline: none;
+  resize: none;
+  transition: border-color 0.15s;
+}
+
+.event-input::placeholder {
+  color: var(--grey-azure);
+}
+
+.event-input:focus {
+  border-color: var(--dark-azure);
+}
+
+.add-event-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 9px 0;
+  background-color: var(--med-azure);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.add-event-btn:hover:not(:disabled) {
+  background-color: var(--dark-azure);
+}
+
+.add-event-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.status-msg {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  text-align: center;
+}
+
+.status-loading {
+  color: var(--grey-azure);
+}
+
+.status-success {
+  color: var(--dark-azure);
+  font-weight: 600;
+}
+
+.status-error {
+  color: #c0392b;
+}
