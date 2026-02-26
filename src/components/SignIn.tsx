@@ -52,7 +52,7 @@ export default function SignIn({ onSuccess }: SignInProps) {
         throw new Error("Google OAuth Client ID is not configured.");
 
       const redirectUrl = chrome.identity.getRedirectURL();
-      console.log('[SignIn] Redirect URL:', redirectUrl);
+      console.log("[SignIn] Redirect URL:", redirectUrl);
       const scopes = [
         "openid",
         "email",
@@ -110,10 +110,7 @@ export default function SignIn({ onSuccess }: SignInProps) {
       </div>
 
       <div className="signin-body">
-        <h2 className="signin-heading">Sign in to Get Starated</h2>
-        <p className="signin-description">
-          Add events to your calendar with natural language input.
-        </p>
+        <h2 className="signin-heading">Sign in/up to get started</h2>
 
         <button
           className="signin-google-btn"
@@ -131,11 +128,6 @@ export default function SignIn({ onSuccess }: SignInProps) {
             {errorMessage ?? "Something went wrong."}
           </p>
         )}
-
-        <p className="signin-privacy">
-          InstaCal will request access to your Google Calendar to create events
-          on your behalf.
-        </p>
       </div>
     </div>
   );
