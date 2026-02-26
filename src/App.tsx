@@ -14,15 +14,15 @@ import "./App.css";
 
 const PREF_KEY = "instacal_prefs";
 
-function formatEventTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+function buildGoogleCalendarUrl(event: ParsedEvent): string {
+  const fmt = (iso: string) => iso.slice(0, 19).replace(/-/g, "").replace(/:/g, "");
+  const dates = `${fmt(event.start)}/${fmt(event.end)}`;
+  const url = new URL("https://calendar.google.com/calendar/r/eventedit");
+  url.searchParams.set("text", event.title);
+  url.searchParams.set("dates", dates);
+  if (event.location) url.searchParams.set("location", event.location);
+  if (event.description) url.searchParams.set("details", event.description);
+  return url.toString();
 }
 
 type SettingsPageType = "settings" | "help" | "preferences" | "coffee";
@@ -32,7 +32,6 @@ function App() {
   const [user, setUser] = useState(auth.currentUser);
   const [authLoading, setAuthLoading] = useState(true);
   const [autoReview, setAutoReview] = useState(true);
-  const [pendingEvent, setPendingEvent] = useState<ParsedEvent | null>(null);
   const [settingsPage, setSettingsPage] = useState<SettingsPageType | null>(null);
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
@@ -115,35 +114,12 @@ function App() {
         await createCalendarEvent(calendarToken, event);
         setStatus("success");
       } else {
-        // Show review step before adding
-        setPendingEvent(event);
-        setStatus("idle");
+        chrome.tabs.create({ url: buildGoogleCalendarUrl(event) });
       }
     } catch (err) {
       setStatus("error");
       setErrorMessage((err as Error).message);
     }
-  }
-
-  async function handleConfirmEvent() {
-    if (!pendingEvent) return;
-    setStatus("loading");
-    try {
-      const calendarToken = await getGoogleCalendarToken();
-      if (!calendarToken) throw new Error("Not authenticated");
-      await createCalendarEvent(calendarToken, pendingEvent);
-      setPendingEvent(null);
-      setStatus("success");
-    } catch (err) {
-      setStatus("error");
-      setErrorMessage((err as Error).message);
-    }
-  }
-
-  function handleEditEvent() {
-    setPendingEvent(null);
-    setStatus("idle");
-    setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   if (!authLoading && !user) {
@@ -190,35 +166,6 @@ function App() {
       </svg>
     </button>
   );
-
-  if (pendingEvent) {
-    return (
-      <div className="popup-container">
-        <PageHeader useLogo rightButton={gearButton} />
-        <h2 className="subheading">does this look right?</h2>
-        <div className="review-card">
-          <p className="review-title">{pendingEvent.title}</p>
-          <p className="review-time">{formatEventTime(pendingEvent.start)} → {formatEventTime(pendingEvent.end)}</p>
-          {pendingEvent.location && (
-            <p className="review-location">{pendingEvent.location}</p>
-          )}
-        </div>
-        <div className="review-actions">
-          <button className="review-edit-btn" onClick={handleEditEvent}>Edit</button>
-          <button
-            className="review-confirm-btn"
-            disabled={status === "loading"}
-            onClick={handleConfirmEvent}
-          >
-            {status === "loading" ? "Adding…" : "Confirm"}
-          </button>
-        </div>
-        {status === "error" && (
-          <p className="status-msg status-error">{errorMessage ?? "Something went wrong."}</p>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="popup-container">
