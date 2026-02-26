@@ -110,7 +110,7 @@ export default function SignIn({ onSuccess }: SignInProps) {
       </div>
 
       <div className="signin-body">
-        <h2 className="signin-heading">Sign in/up to get started</h2>
+        <h2 className="signin-heading">Sign in to get started</h2>
 
         <button
           className="signin-google-btn"
@@ -129,6 +129,8 @@ export default function SignIn({ onSuccess }: SignInProps) {
           </p>
         )}
       </div>
+
+      <p className="signin-footer">Made with ❤️ by Yaelin and Gabriel</p>
     </div>
   );
 }
