@@ -17,7 +17,17 @@ export default function CoffeePage({ onBack }: CoffeePageProps) {
   return (
     <div className="coffee-container">
       <PageHeader title="Buy us a Coffee" leftButton={backButton} />
-      <p className="coffee-message">Thank you for your support! Link coming soon.</p>
+      <p className="coffee-message">
+        Thank you for your support!{' '}
+        <a
+          href="https://buymeacoffee.com/yhough"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="coffee-link"
+        >
+          Buy us a coffee ☕
+        </a>
+      </p>
     </div>
   )
 }

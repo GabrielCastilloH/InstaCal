@@ -38,4 +38,15 @@
   margin-top: 20px;
   font-size: 13px;
   color: var(--color-text-muted);
+  text-align: center;
+}
+
+.coffee-link {
+  color: var(--dark-azure);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.coffee-link:hover {
+  text-decoration: underline;
 }

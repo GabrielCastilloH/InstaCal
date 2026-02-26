@@ -137,7 +137,7 @@ export default function SettingsPage({
             <ChevronRight />
           </span>
         </button>
-        <button className="settings-row" onClick={() => onNavigate("coffee")}>
+        <button className="settings-row" onClick={() => chrome.tabs.create({ url: "https://buymeacoffee.com/yhough" })}>
           <span className="settings-row-icon">
             <CoffeeIcon />
           </span>
