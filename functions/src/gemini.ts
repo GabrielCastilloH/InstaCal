@@ -1,4 +1,4 @@
-import OpenAI from 'openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export type ParsedEvent = {
   title: string
@@ -29,10 +29,6 @@ Rules:
 - All times should be interpreted in 12-hour context unless clearly 24-hour (e.g. "4" = 4:00 PM if in the afternoon/evening context, "9" = 9:00 AM if in a morning context).
 - Output ONLY the JSON object. Any other text will cause an error.`
 
-function getClient(apiKey: string): OpenAI {
-  return new OpenAI({ apiKey })
-}
-
 function isValidParsedEvent(obj: unknown): obj is ParsedEvent {
   if (typeof obj !== 'object' || obj === null) return false
   const e = obj as Record<string, unknown>
@@ -49,31 +45,31 @@ export async function parseEventWithAI(
   input: { text: string; nowISO: string },
   apiKey: string
 ): Promise<ParsedEvent> {
-  const client = getClient(apiKey)
-
+  const genAI = new GoogleGenerativeAI(apiKey)
   const systemPrompt = SYSTEM_PROMPT.replace('{NOW_ISO}', input.nowISO)
 
-  const response = await client.chat.completions.create({
-    model: 'gpt-4o-mini',
-    temperature: 0,
-    response_format: { type: 'json_object' },
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: input.text },
-    ],
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash-lite',
+    systemInstruction: systemPrompt,
+    generationConfig: {
+      temperature: 0,
+      responseMimeType: 'application/json',
+    },
   })
 
-  const raw = response.choices[0]?.message?.content ?? ''
+  const result = await model.generateContent(input.text)
+  const response = result.response
+  const raw = response.text() ?? ''
 
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
   } catch {
-    throw new Error(`OpenAI returned invalid JSON. Raw output: ${raw}`)
+    throw new Error(`Gemini returned invalid JSON. Raw output: ${raw}`)
   }
 
   if (!isValidParsedEvent(parsed)) {
-    throw new Error(`OpenAI response missing required fields. Raw output: ${raw}`)
+    throw new Error(`Gemini response missing required fields. Raw output: ${raw}`)
   }
 
   return parsed

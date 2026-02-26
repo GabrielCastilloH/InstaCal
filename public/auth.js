@@ -40,8 +40,13 @@
     const accessToken = hashParams.get('access_token');
     if (!accessToken) throw new Error('No access token in response');
 
-    // Store the token for the popup to pick up
-    await chrome.storage.local.set({ instacal_google_calendar_token: accessToken });
+    var expiresIn = parseInt(hashParams.get('expires_in') || '3600', 10);
+
+    // Store the token and expiry for the popup to pick up
+    await chrome.storage.local.set({
+      instacal_google_calendar_token: accessToken,
+      instacal_google_calendar_token_expiry: Date.now() + expiresIn * 1000,
+    });
 
     window.close();
 

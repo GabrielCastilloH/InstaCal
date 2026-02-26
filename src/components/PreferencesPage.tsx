@@ -29,13 +29,14 @@ interface PreferencesPageProps {
 }
 
 export default function PreferencesPage({ onBack }: PreferencesPageProps) {
-  const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
+  const [prefs, setPrefs] = useState<Prefs | null>(null)
 
   useEffect(() => {
     loadPrefs().then(setPrefs)
   }, [])
 
   async function toggle(key: keyof Prefs) {
+    if (!prefs) return
     const updated = { ...prefs, [key]: !prefs[key] }
     setPrefs(updated)
     await savePrefs(updated)
@@ -60,11 +61,12 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             <span className="pref-description">Skip review and add events directly to Calendar.</span>
           </div>
           <button
-            className={`toggle ${prefs.autoReview ? 'toggle-on' : 'toggle-off'}`}
+            className={`toggle ${prefs?.autoReview ? 'toggle-on' : 'toggle-off'}`}
             onClick={() => toggle('autoReview')}
             aria-label="Toggle auto-add"
             role="switch"
-            aria-checked={prefs.autoReview}
+            aria-checked={prefs?.autoReview ?? false}
+            disabled={prefs === null}
           >
             <span className="toggle-thumb" />
           </button>

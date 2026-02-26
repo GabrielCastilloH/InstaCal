@@ -7,18 +7,18 @@ import { onRequest } from 'firebase-functions/v2/https'
 import { defineSecret } from 'firebase-functions/params'
 import express, { Request, Response } from 'express'
 import cors from 'cors'
-import { parseEventWithAI, ParsedEvent } from './openai'
+import { parseEventWithAI, ParsedEvent } from './gemini'
 
 admin.initializeApp()
 
-const openaiSecret = defineSecret('OPENAI_API_KEY')
+const geminiSecret = defineSecret('GEMINI_API_KEY')
 
 const app = express()
 app.use(cors({ origin: true }))
 app.use(express.json())
 
-function getOpenAiApiKey(): string {
-  return process.env.OPENAI_API_KEY ?? openaiSecret.value()
+function getGeminiApiKey(): string {
+  return process.env.GEMINI_API_KEY ?? geminiSecret.value()
 }
 
 async function verifyAuth(
@@ -63,7 +63,7 @@ app.post(
     const nowISO = now ?? new Date().toISOString()
 
     try {
-      const apiKey = getOpenAiApiKey()
+      const apiKey = getGeminiApiKey()
       const event = await parseEventWithAI({ text: text.trim(), nowISO }, apiKey)
       res.json(event)
     } catch (err) {
@@ -76,7 +76,7 @@ app.post(
 export const api = onRequest(
   {
     cors: true,
-    secrets: [openaiSecret],
+    secrets: [geminiSecret],
   },
   app
 )

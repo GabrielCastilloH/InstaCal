@@ -23,10 +23,13 @@ Simply type something like **"Lunch with Sarah tomorrow at noon"** and InstaCal 
 
 - Add stars and decoration to the sign in page
 - Improve loading indicator
+- Ability to invite people to an event
+- Ability to export availability
 
 ## Setup
 
-See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for Firebase configuration and deployment.
+- **Gemini API**: See [GEMINI_SETUP.md](GEMINI_SETUP.md) for API key setup and deployment
+- **Firebase**: See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for Firebase configuration (if available)
 
 ## Contributing
 
