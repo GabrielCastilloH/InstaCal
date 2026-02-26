@@ -29,9 +29,7 @@ Rules:
 - All times should be interpreted in 12-hour context unless clearly 24-hour (e.g. "4" = 4:00 PM if in the afternoon/evening context, "9" = 9:00 AM if in a morning context).
 - Output ONLY the JSON object. Any other text will cause an error.`
 
-function getClient(): OpenAI {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not set in environment')
+function getClient(apiKey: string): OpenAI {
   return new OpenAI({ apiKey })
 }
 
@@ -47,11 +45,11 @@ function isValidParsedEvent(obj: unknown): obj is ParsedEvent {
   )
 }
 
-export async function parseEventWithAI(input: {
-  text: string
-  nowISO: string
-}): Promise<ParsedEvent> {
-  const client = getClient()
+export async function parseEventWithAI(
+  input: { text: string; nowISO: string },
+  apiKey: string
+): Promise<ParsedEvent> {
+  const client = getClient(apiKey)
 
   const systemPrompt = SYSTEM_PROMPT.replace('{NOW_ISO}', input.nowISO)
 

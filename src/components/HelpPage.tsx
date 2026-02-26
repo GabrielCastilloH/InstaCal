@@ -1,3 +1,6 @@
+import { signOut } from 'firebase/auth'
+import { auth } from '../lib/firebase'
+import { clearGoogleCalendarToken } from '../services/auth'
 import './HelpPage.css'
 
 interface HelpPageProps {
@@ -5,6 +8,11 @@ interface HelpPageProps {
 }
 
 export default function HelpPage({ onBack }: HelpPageProps) {
+  async function handleSignOut() {
+    await clearGoogleCalendarToken()
+    await signOut(auth)
+    onBack() // Reset help view before auth state updates
+  }
   return (
     <div className="help-container">
 
@@ -49,6 +57,10 @@ export default function HelpPage({ onBack }: HelpPageProps) {
           <a href="mailto:gac232@cornell.edu">gac232@cornell.edu</a>
         </div>
       </div>
+
+      <button className="signout-btn" onClick={handleSignOut}>
+        Sign out
+      </button>
 
     </div>
   )

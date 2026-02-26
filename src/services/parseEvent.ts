@@ -1,4 +1,4 @@
-const BACKEND_URL = 'http://localhost:3000'
+const BACKEND_URL = import.meta.env.VITE_CLOUD_FUNCTION_URL ?? 'http://localhost:5001/instacal-app/us-central1/api'
 
 export type ParsedEvent = {
   title: string
@@ -8,10 +8,13 @@ export type ParsedEvent = {
   description: string | null
 }
 
-export async function parseEvent(text: string): Promise<ParsedEvent> {
+export async function parseEvent(text: string, idToken: string): Promise<ParsedEvent> {
   const response = await fetch(`${BACKEND_URL}/parse`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${idToken}`,
+    },
     body: JSON.stringify({ text, now: new Date().toISOString() }),
   })
 

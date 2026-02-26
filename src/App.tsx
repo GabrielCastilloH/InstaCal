@@ -1,16 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from './lib/firebase'
 import logoLarge from './assets/logo-large.svg'
-import HelpPage from './HelpPage'
+import HelpPage from './components/HelpPage'
+import SignIn from './components/SignIn'
 import { parseEvent } from './services/parseEvent'
-import { getAuthTokenInteractive } from './services/auth'
+import { getFirebaseIdToken, getGoogleCalendarToken } from './services/auth'
 import { createCalendarEvent } from './services/calendar'
 import './App.css'
 
 function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const [user, setUser] = useState(auth.currentUser)
+  const [authLoading, setAuthLoading] = useState(true)
   const [showHelp, setShowHelp] = useState(false)
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u)
+      setAuthLoading(false)
+    })
+    return () => unsub()
+  }, [])
 
   useEffect(() => {
     if (!showHelp) {
@@ -26,14 +39,30 @@ function App() {
     setErrorMessage(undefined)
 
     try {
-      const event = await parseEvent(text)
-      const token = await getAuthTokenInteractive()
-      await createCalendarEvent(token, event)
+      const idToken = await getFirebaseIdToken()
+      const calendarToken = await getGoogleCalendarToken()
+      if (!idToken || !calendarToken) {
+        throw new Error('Not authenticated')
+      }
+      const event = await parseEvent(text, idToken)
+      await createCalendarEvent(calendarToken, event)
       setStatus('success')
     } catch (err) {
       setStatus('error')
       setErrorMessage((err as Error).message)
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="popup-container">
+        <p className="status-msg status-loading">Loading…</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <SignIn />
   }
 
   if (showHelp) {

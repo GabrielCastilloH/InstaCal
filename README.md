@@ -8,6 +8,7 @@ Simply type something like **"Lunch with Sarah tomorrow at noon"** and InstaCal 
 
 - Natural language event creation
 - Google Calendar integration
+- Firebase Authentication (Google Sign-In)
 - AI-powered date, time, and event detail parsing
 
 ## Tech Stack
@@ -15,11 +16,12 @@ Simply type something like **"Lunch with Sarah tomorrow at noon"** and InstaCal 
 - **Frontend**: React + TypeScript
 - **Build Tool**: Vite
 - **Platform**: Chrome Extension (Manifest V3)
+- **Backend**: Firebase Cloud Functions
+- **Auth**: Firebase Authentication
 
+## Setup
 
-## Installation
-
-> Coming soon — the extension is currently in development.
+See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for Firebase configuration and deployment.
 
 ## Contributing
 

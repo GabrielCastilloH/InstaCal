@@ -1,0 +1,68 @@
+@import '../styles/colors.css';
+
+.signin-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24px 20px 20px;
+  width: 320px;
+  min-height: 280px;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.signin-logo {
+  height: 44px;
+  width: auto;
+  margin: 0 0 8px;
+  flex-shrink: 0;
+}
+
+.signin-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.signin-subheading {
+  margin: 0 0 24px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--grey-azure);
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+.signin-btn {
+  width: 100%;
+  padding: 9px 0;
+  background-color: var(--med-azure);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.signin-btn:hover:not(:disabled) {
+  background-color: var(--dark-azure);
+}
+
+.signin-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.signin-error {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #c0392b;
+  text-align: center;
+}

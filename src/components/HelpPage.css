@@ -1,4 +1,4 @@
-@import './styles/colors.css';
+@import '../styles/colors.css';
 
 .help-container {
   position: relative;
@@ -136,4 +136,23 @@
 .contact-links a:hover {
   color: var(--dark-azure);
   text-decoration: underline;
+}
+
+.signout-btn {
+  margin-top: 16px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--grey-azure);
+  background: none;
+  border: 1px solid var(--med-azure);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+
+.signout-btn:hover {
+  color: var(--dark-azure);
+  background-color: var(--light-azure);
+  border-color: var(--dark-azure);
 }
