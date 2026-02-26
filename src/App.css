@@ -70,7 +70,7 @@
 }
 
 .event-input:focus {
-  border-color: var(--color-border-focus);
+  border-color: var(--color-border-default);
 }
 
 .event-input-loading {

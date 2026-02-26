@@ -68,7 +68,6 @@
 .settings-signout-btn:hover {
   color: var(--color-interactive-hover);
   background-color: var(--color-bg-subtle);
-  border-color: var(--color-interactive-hover);
 }
 
 .settings-row {
