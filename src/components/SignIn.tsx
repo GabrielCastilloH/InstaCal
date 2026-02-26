@@ -130,7 +130,7 @@ export default function SignIn({ onSuccess }: SignInProps) {
         )}
       </div>
 
-      <p className="signin-footer">Made with ❤️ by Yaelin and Gabriel</p>
+      <p className="signin-footer">Made with ♡ by Yaelin and Gabriel</p>
     </div>
   );
 }

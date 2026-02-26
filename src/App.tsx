@@ -4,6 +4,7 @@ import { auth } from './lib/firebase'
 import HelpPage from './components/HelpPage'
 import PageHeader from './components/PageHeader'
 import SignIn from './components/SignIn'
+import SkeletonTextarea from './components/SkeletonTextarea'
 import { parseEvent } from './services/parseEvent'
 import { getFirebaseIdToken, getGoogleCalendarToken } from './services/auth'
 import { createCalendarEvent } from './services/calendar'
@@ -53,19 +54,11 @@ function App() {
     }
   }
 
-  if (authLoading) {
-    return (
-      <div className="popup-container">
-        <p className="status-msg status-loading">Loading…</p>
-      </div>
-    )
-  }
-
-  if (!user) {
+  if (!authLoading && !user) {
     return <SignIn />
   }
 
-  if (showHelp) {
+  if (user && showHelp) {
     return <HelpPage onBack={() => setShowHelp(false)} />
   }
 
@@ -82,14 +75,18 @@ function App() {
     <div className="popup-container">
       <PageHeader useLogo rightButton={gearButton} />
       <h2 className="subheading">Plan your next event</h2>
-      <textarea
-        ref={inputRef}
-        className="event-input"
-        placeholder="Dinner with Gabe this Monday at 6"
-      />
+      {authLoading ? (
+        <SkeletonTextarea />
+      ) : (
+        <textarea
+          ref={inputRef}
+          className="event-input"
+          placeholder="Dinner with Gabe this Monday at 6"
+        />
+      )}
       <button
         className="add-event-btn"
-        disabled={status === 'loading'}
+        disabled={status === 'loading' || authLoading}
         onClick={handleAddEvent}
       >
         {status === 'loading' ? 'Adding…' : 'Add Event'}
