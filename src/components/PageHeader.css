@@ -33,7 +33,7 @@
   margin: 0;
   font-size: 24px;
   font-family: "Sanchez", serif;
-  color: var(--dark-azure);
+  color: var(--color-text-secondary);
   text-align: center;
   line-height: 1.2;
 }

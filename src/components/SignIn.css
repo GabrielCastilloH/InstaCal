@@ -36,7 +36,7 @@
   margin: 0 0 20px;
   font-size: 17px;
   font-weight: 500;
-  color: var(--dark-azure);
+  color: var(--color-text-secondary);
   text-align: center;
   letter-spacing: -0.01em;
 }
@@ -45,7 +45,7 @@
   margin: 0 0 20px;
   font-size: 12.5px;
   line-height: 1.6;
-  color: var(--grey-azure);
+  color: var(--color-text-muted);
   text-align: center;
 }
 
@@ -94,9 +94,8 @@
   margin: 0;
   padding: 0 0 12px;
   font-size: 11px;
-  color: var(--grey-azure);
+  color: var(--color-text-tertiary);
   text-align: center;
-  opacity: 0.7;
 }
 
 /* ── Privacy note ── */
@@ -104,6 +103,6 @@
   margin: 16px 0 0;
   font-size: 11px;
   line-height: 1.5;
-  color: var(--grey-azure);
+  color: var(--color-text-muted);
   text-align: center;
 }
