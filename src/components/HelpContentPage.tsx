@@ -36,9 +36,9 @@ export default function HelpContentPage({ onBack }: HelpContentPageProps) {
       <div className="help-examples">
         <p className="examples-label">Try something like</p>
         <ul>
-          <li>"Dentist appointment in 3 days at 2pm"</li>
-          <li>"Team lunch Friday at noon at CTB"</li>
-          <li>"meet w/ yaelin tmw, 4, olin lib"</li>
+          <li>Dentist appointment in 3 days at 2pm</li>
+          <li>Team lunch Friday at noon at CTB</li>
+          <li>meet w/ yaelin tmw, 4, olin lib</li>
         </ul>
       </div>
     </div>
