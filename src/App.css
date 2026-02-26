@@ -73,6 +73,11 @@
   border-color: var(--color-border-focus);
 }
 
+.event-input-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .add-event-btn {
   width: 100%;
   margin-top: 12px;
