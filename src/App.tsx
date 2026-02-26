@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./lib/firebase";
-import HelpPage from "./components/HelpPage";
+import SettingsPage from "./components/SettingsPage";
+import HelpContentPage from "./components/HelpContentPage";
+import PreferencesPage from "./components/PreferencesPage";
+import CoffeePage from "./components/CoffeePage";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
 import { parseEvent } from "./services/parseEvent";
@@ -9,11 +12,13 @@ import { getFirebaseIdToken, getGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
 import "./App.css";
 
+type SettingsPageType = "settings" | "help" | "preferences" | "coffee";
+
 function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [user, setUser] = useState(auth.currentUser);
   const [authLoading, setAuthLoading] = useState(true);
-  const [showHelp, setShowHelp] = useState(false);
+  const [settingsPage, setSettingsPage] = useState<SettingsPageType | null>(null);
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
@@ -28,10 +33,10 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!showHelp) {
+    if (!settingsPage) {
       inputRef.current?.focus();
     }
-  }, [showHelp]);
+  }, [settingsPage]);
 
   async function handleAddEvent() {
     const text = inputRef.current?.value.trim() ?? "";
@@ -59,15 +64,29 @@ function App() {
     return <SignIn />;
   }
 
-  if (user && showHelp) {
-    return <HelpPage onBack={() => setShowHelp(false)} />;
+  if (user && settingsPage === "settings") {
+    return (
+      <SettingsPage
+        onBack={() => setSettingsPage(null)}
+        onNavigate={(page) => setSettingsPage(page)}
+      />
+    );
+  }
+  if (user && settingsPage === "help") {
+    return <HelpContentPage onBack={() => setSettingsPage("settings")} />;
+  }
+  if (user && settingsPage === "preferences") {
+    return <PreferencesPage onBack={() => setSettingsPage("settings")} />;
+  }
+  if (user && settingsPage === "coffee") {
+    return <CoffeePage onBack={() => setSettingsPage("settings")} />;
   }
 
   const gearButton = (
     <button
       className="gear-btn"
       aria-label="Settings"
-      onClick={() => setShowHelp(true)}
+      onClick={() => setSettingsPage("settings")}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
