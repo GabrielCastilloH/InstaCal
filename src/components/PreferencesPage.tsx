@@ -82,7 +82,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
           </button>
         </div>
 
-        <div className="pref-row">
+        <div className="pref-row pref-row-no-border">
           <div className="pref-text">
             <span className="pref-label">Smart defaults</span>
             <span className="pref-description">AI picks time and duration based on the event type.</span>
@@ -100,11 +100,10 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
         </div>
 
         {!prefs?.smartDefaults && (
-          <>
+          <div className="pref-defaults-box">
             <div className="pref-row">
               <div className="pref-text">
                 <span className="pref-label">Default duration</span>
-                <span className="pref-description">Event length when no end time is given.</span>
               </div>
               <div className="pref-input-group">
                 <input
@@ -127,7 +126,6 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             <div className="pref-row">
               <div className="pref-text">
                 <span className="pref-label">Default start time</span>
-                <span className="pref-description">Used when only a date is provided.</span>
               </div>
               <input
                 type="time"
@@ -141,7 +139,6 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             <div className="pref-row">
               <div className="pref-text">
                 <span className="pref-label">Default location</span>
-                <span className="pref-description">Fallback when no location is mentioned.</span>
               </div>
               <input
                 type="text"
@@ -152,7 +149,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
                 onChange={(e) => updatePref('defaultLocation', e.target.value)}
               />
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

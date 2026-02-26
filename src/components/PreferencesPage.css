@@ -46,9 +46,39 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 8px 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--color-text-muted) 25%, transparent);
+}
+
+.pref-row-no-border {
+  border-bottom: none;
+}
+
+/* Defaults box — styled like the help-examples box */
+.pref-defaults-box {
+  width: 100%;
+  background-color: var(--color-bg-subtle);
+  border-radius: 8px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.pref-defaults-box .pref-row {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-text-muted) 20%, transparent);
+  border-radius: 0;
+  padding: 6px 4px;
+}
+
+.pref-defaults-box .pref-row:last-child {
+  border-bottom: none;
+}
+
+.pref-defaults-box .pref-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
 }
 
 .pref-text {
