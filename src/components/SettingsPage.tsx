@@ -2,6 +2,7 @@ import { signOut } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { clearGoogleCalendarToken } from '../services/auth'
 import PageHeader from './PageHeader'
+import SettingsFooter from './SettingsFooter'
 import './SettingsPage.css'
 
 type SettingsSubPage = 'help' | 'preferences' | 'coffee'
@@ -79,19 +80,7 @@ export default function SettingsPage({ onBack, onNavigate }: SettingsPageProps) 
         </button>
       </div>
 
-      <div className="settings-contact">
-        <p className="examples-label">Bugs or feedback?</p>
-        <div className="contact-links">
-          <a href="mailto:yh2299@cornell.edu">yh2299@cornell.edu</a>
-          <a href="mailto:gac232@cornell.edu">gac232@cornell.edu</a>
-        </div>
-      </div>
-
-      <button className="signout-btn" onClick={handleSignOut}>
-        Sign out
-      </button>
-
-      <p className="settings-footer">Made with ❤️ by Yaelin & Gabriel</p>
+      <SettingsFooter onSignOut={handleSignOut} />
     </div>
   )
 }
