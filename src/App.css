@@ -124,3 +124,11 @@
   color: #c0392b;
 }
 
+.main-footer {
+  margin: auto 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding-top: 6px;
+}
+

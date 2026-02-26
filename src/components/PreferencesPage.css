@@ -34,9 +34,13 @@
   background-color: var(--color-bg-subtle);
 }
 
+.preferences-container .page-header {
+  margin-bottom: 0;
+}
+
 .pref-list {
   width: 100%;
-  margin-top: 8px;
+  margin-top: 1;
   display: flex;
   flex-direction: column;
 }
