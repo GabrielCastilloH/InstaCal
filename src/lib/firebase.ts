@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
+import { getAuth } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,8 +11,19 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
-export const app = initializeApp(firebaseConfig)
-export const auth = getAuth(app)
+console.log('[Firebase Config] Initializing with:', {
+  apiKey: firebaseConfig.apiKey ? '✓ present' : '✗ missing',
+  authDomain: firebaseConfig.authDomain || '✗ missing',
+  projectId: firebaseConfig.projectId || '✗ missing',
+  storageBucket: firebaseConfig.storageBucket || '✗ missing',
+  messagingSenderId: firebaseConfig.messagingSenderId || '✗ missing',
+  appId: firebaseConfig.appId ? '✓ present' : '✗ missing',
+  measurementId: firebaseConfig.measurementId || '✗ missing',
+})
 
-export const googleProvider = new GoogleAuthProvider()
-googleProvider.addScope('https://www.googleapis.com/auth/calendar.events')
+export const app = initializeApp(firebaseConfig)
+console.log('[Firebase] App initialized successfully')
+
+export const auth = getAuth(app)
+console.log('[Firebase Auth] Auth instance created')
+
