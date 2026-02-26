@@ -26,7 +26,8 @@ Simply type something like **"Lunch with Sarah tomorrow at noon"** and InstaCal 
 
 ## Setup
 
-See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for Firebase configuration and deployment.
+- **Gemini API**: See [GEMINI_SETUP.md](GEMINI_SETUP.md) for API key setup and deployment
+- **Firebase**: See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for Firebase configuration (if available)
 
 ## Contributing
 
