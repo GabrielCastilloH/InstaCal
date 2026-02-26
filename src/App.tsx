@@ -50,7 +50,7 @@ function App() {
   // Complete sign-in if the background script stored a pending OAuth token
   useEffect(() => {
     chrome.storage.local.get(["instacal_pending_auth"], async (result) => {
-      const pending = result.instacal_pending_auth as { accessToken?: string; error?: string } | undefined;
+      const pending = result.instacal_pending_auth as { accessToken?: string; expiresIn?: number; error?: string } | undefined;
       if (!pending) return;
 
       await chrome.storage.local.remove("instacal_pending_auth");
@@ -65,7 +65,7 @@ function App() {
           const credential = GoogleAuthProvider.credential(null, pending.accessToken);
           const userResult = await signInWithCredential(auth, credential);
           if (userResult.user) {
-            await setGoogleCalendarToken(pending.accessToken);
+            await setGoogleCalendarToken(pending.accessToken, pending.expiresIn);
           }
         } catch (err) {
           console.error("[App] signInWithCredential failed:", err);

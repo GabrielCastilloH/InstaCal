@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { signInWithCredential, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
-import { setGoogleCalendarToken } from "../services/auth";
+import { requestGoogleToken, setGoogleCalendarToken } from "../services/auth";
 import PageHeader from "./PageHeader";
 import "./SignIn.css";
 
@@ -47,53 +47,12 @@ export default function SignIn({ onSuccess }: SignInProps) {
     setErrorMessage(undefined);
 
     try {
-      const clientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string;
-      if (!clientId)
-        throw new Error("Google OAuth Client ID is not configured.");
-
-      const redirectUrl = chrome.identity.getRedirectURL();
-      console.log("[SignIn] Redirect URL:", redirectUrl);
-      const scopes = [
-        "openid",
-        "email",
-        "profile",
-        "https://www.googleapis.com/auth/calendar.events",
-      ];
-
-      const authUrl = new URL("https://accounts.google.com/o/oauth2/auth");
-      authUrl.searchParams.set("client_id", clientId);
-      authUrl.searchParams.set("response_type", "token");
-      authUrl.searchParams.set("redirect_uri", redirectUrl);
-      authUrl.searchParams.set("scope", scopes.join(" "));
-
-      const responseUrl = await new Promise<string>((resolve, reject) => {
-        chrome.identity.launchWebAuthFlow(
-          { url: authUrl.toString(), interactive: true },
-          (redirectResponse) => {
-            if (chrome.runtime.lastError || !redirectResponse) {
-              reject(
-                new Error(
-                  chrome.runtime.lastError?.message ?? "Auth cancelled",
-                ),
-              );
-            } else {
-              resolve(redirectResponse);
-            }
-          },
-        );
-      });
-
-      const hashParams = new URLSearchParams(
-        new URL(responseUrl).hash.slice(1),
-      );
-      const accessToken = hashParams.get("access_token");
-      if (!accessToken) throw new Error("No access token in response.");
-
+      const { accessToken, expiresIn } = await requestGoogleToken(true);
       const credential = GoogleAuthProvider.credential(null, accessToken);
       const result = await signInWithCredential(auth, credential);
 
       if (result.user) {
-        await setGoogleCalendarToken(accessToken);
+        await setGoogleCalendarToken(accessToken, expiresIn);
         onSuccess?.();
       }
     } catch (err) {
