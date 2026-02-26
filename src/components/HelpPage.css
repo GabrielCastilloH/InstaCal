@@ -15,9 +15,6 @@
 }
 
 .back-btn {
-  position: absolute;
-  top: 16px;
-  left: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -35,13 +32,6 @@
 .back-btn:hover {
   color: var(--dark-azure);
   background-color: var(--light-azure);
-}
-
-.help-title {
-  margin: 0 0 14px;
-  font-family: 'Sanchez', serif;
-  color: var(--dark-azure);
-  text-align: center;
 }
 
 .help-tagline {

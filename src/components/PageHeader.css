@@ -1,0 +1,39 @@
+@import '../styles/colors.css';
+
+.page-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.header-slot {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-logo {
+  height: 20px;
+  width: auto;
+}
+
+.header-title {
+  margin: 0;
+  font-size: 18px;
+  font-family: 'Sanchez', serif;
+  color: var(--dark-azure);
+  text-align: center;
+  line-height: 1.2;
+}

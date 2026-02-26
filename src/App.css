@@ -15,9 +15,6 @@
 }
 
 .gear-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -35,12 +32,6 @@
 .gear-btn:hover {
   color: var(--dark-azure);
   background-color: var(--light-azure);
-}
-
-.logo {
-  height: 44px;
-  width: auto;
-  margin: 0;
 }
 
 .subheading {
