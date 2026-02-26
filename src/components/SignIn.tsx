@@ -1,13 +1,6 @@
 import { useState } from "react";
-import { signInWithCredential, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "../lib/firebase";
-import { setGoogleCalendarToken } from "../services/auth";
 import PageHeader from "./PageHeader";
 import "./SignIn.css";
-
-interface SignInProps {
-  onSuccess?: () => void;
-}
 
 function GoogleLogo() {
   return (
@@ -38,69 +31,28 @@ function GoogleLogo() {
   );
 }
 
-export default function SignIn({ onSuccess }: SignInProps) {
+export default function SignIn() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
-  async function handleSignIn() {
+  function handleSignIn() {
     setStatus("loading");
     setErrorMessage(undefined);
 
-    try {
-      const clientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string;
-      if (!clientId)
-        throw new Error("Google OAuth Client ID is not configured.");
-
-      const redirectUrl = chrome.identity.getRedirectURL();
-      console.log("[SignIn] Redirect URL:", redirectUrl);
-      const scopes = [
-        "openid",
-        "email",
-        "profile",
-        "https://www.googleapis.com/auth/calendar.events",
-      ];
-
-      const authUrl = new URL("https://accounts.google.com/o/oauth2/auth");
-      authUrl.searchParams.set("client_id", clientId);
-      authUrl.searchParams.set("response_type", "token");
-      authUrl.searchParams.set("redirect_uri", redirectUrl);
-      authUrl.searchParams.set("scope", scopes.join(" "));
-
-      const responseUrl = await new Promise<string>((resolve, reject) => {
-        chrome.identity.launchWebAuthFlow(
-          { url: authUrl.toString(), interactive: true },
-          (redirectResponse) => {
-            if (chrome.runtime.lastError || !redirectResponse) {
-              reject(
-                new Error(
-                  chrome.runtime.lastError?.message ?? "Auth cancelled",
-                ),
-              );
-            } else {
-              resolve(redirectResponse);
-            }
-          },
-        );
-      });
-
-      const hashParams = new URLSearchParams(
-        new URL(responseUrl).hash.slice(1),
-      );
-      const accessToken = hashParams.get("access_token");
-      if (!accessToken) throw new Error("No access token in response.");
-
-      const credential = GoogleAuthProvider.credential(null, accessToken);
-      const result = await signInWithCredential(auth, credential);
-
-      if (result.user) {
-        await setGoogleCalendarToken(accessToken);
-        onSuccess?.();
-      }
-    } catch (err) {
+    const clientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string;
+    if (!clientId) {
       setStatus("error");
-      const message = err instanceof Error ? err.message : "Sign in failed";
-      setErrorMessage(message);
+      setErrorMessage("Google OAuth Client ID is not configured.");
+      return;
     }
+
+    // Open the auth page as an inactive background tab. It calls
+    // launchWebAuthFlow (which shows the Google consent screen) and stores
+    // the token, then auto-closes. The user only sees the consent screen.
+    const authPageUrl = chrome.runtime.getURL(
+      `auth.html?client_id=${encodeURIComponent(clientId)}`
+    );
+    chrome.tabs.create({ url: authPageUrl, active: false });
   }
 
   return (
@@ -119,7 +71,7 @@ export default function SignIn({ onSuccess }: SignInProps) {
         >
           <GoogleLogo />
           <span>
-            {status === "loading" ? "Signing in…" : "Continue with Google"}
+            {status === "loading" ? "Opening sign-in…" : "Continue with Google"}
           </span>
         </button>
 

@@ -34,19 +34,11 @@
   background-color: var(--color-bg-subtle);
 }
 
-.help-tagline {
-  margin: 0 0 14px;
-  font-size: 11.5px;
-  color: var(--color-text-muted);
-  text-align: center;
-  letter-spacing: 0.02em;
-}
-
 .help-section {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 12px;
 }
 
@@ -68,12 +60,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  transform: translateY(-2px);
 }
 
 .step-text {
   font-size: 12px;
   color: var(--color-text-primary);
-  line-height: 1.5;
+  line-height: 1.35;
 }
 
 .help-examples {
@@ -90,7 +83,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-interactive-primary);
+  color: var(--color-primary-700);
 }
 
 .help-examples ul {
@@ -102,46 +95,4 @@
   font-size: 11.5px;
   color: var(--color-interactive-hover);
   line-height: 1.7;
-}
-
-.help-contact {
-  width: 100%;
-  margin-top: 10px;
-}
-
-.contact-links {
-  display: flex;
-  flex-direction: row;
-  gap: 12px;
-}
-
-.contact-links a {
-  font-size: 11.5px;
-  color: var(--color-interactive-primary);
-  text-decoration: none;
-  transition: color 0.15s;
-}
-
-.contact-links a:hover {
-  color: var(--color-interactive-hover);
-  text-decoration: underline;
-}
-
-.signout-btn {
-  margin-top: 16px;
-  padding: 6px 12px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  background: none;
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
-}
-
-.signout-btn:hover {
-  color: var(--color-interactive-hover);
-  background-color: var(--color-bg-subtle);
-  border-color: var(--color-interactive-hover);
 }

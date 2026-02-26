@@ -1,37 +1,94 @@
 import { useEffect, useRef, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+import { signInWithCredential, GoogleAuthProvider, type User } from "firebase/auth";
 import { auth } from "./lib/firebase";
-import HelpPage from "./components/HelpPage";
+import SettingsPage from "./components/SettingsPage";
+import HelpContentPage from "./components/HelpContentPage";
+import PreferencesPage from "./components/PreferencesPage";
+import CoffeePage from "./components/CoffeePage";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
-import { parseEvent } from "./services/parseEvent";
-import { getFirebaseIdToken, getGoogleCalendarToken } from "./services/auth";
+import { parseEvent, type ParsedEvent } from "./services/parseEvent";
+import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
 import "./App.css";
 
+const PREF_KEY = "instacal_prefs";
+
+function buildGoogleCalendarUrl(event: ParsedEvent): string {
+  const fmt = (iso: string) => iso.slice(0, 19).replace(/-/g, "").replace(/:/g, "");
+  const dates = `${fmt(event.start)}/${fmt(event.end)}`;
+  const url = new URL("https://calendar.google.com/calendar/r/eventedit");
+  url.searchParams.set("text", event.title);
+  url.searchParams.set("dates", dates);
+  if (event.location) url.searchParams.set("location", event.location);
+  if (event.description) url.searchParams.set("details", event.description);
+  return url.toString();
+}
+
+type SettingsPageType = "settings" | "help" | "preferences" | "coffee";
+
 function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const [user, setUser] = useState(auth.currentUser);
+  const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [showHelp, setShowHelp] = useState(false);
+  const [autoReview, setAutoReview] = useState(true);
+  const [settingsPage, setSettingsPage] = useState<SettingsPageType | null>(null);
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setAuthLoading(false);
-    });
-    return () => unsub();
+    let cancelled = false;
+
+    async function init() {
+      // Check for a stored Google token and re-authenticate
+      const googleToken = await getGoogleCalendarToken();
+      if (googleToken) {
+        try {
+          const credential = GoogleAuthProvider.credential(null, googleToken);
+          const result = await signInWithCredential(auth, credential);
+          if (!cancelled) {
+            setUser(result.user);
+            setAuthLoading(false);
+          }
+          return;
+        } catch {
+          await clearGoogleCalendarToken();
+        }
+      }
+
+      if (!cancelled) {
+        setUser(null);
+        setAuthLoading(false);
+      }
+    }
+
+    init();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    if (!showHelp) {
+    chrome.storage.local.get([PREF_KEY], (result) => {
+      const prefs = result[PREF_KEY] as { autoReview?: boolean } | undefined;
+      if (prefs && typeof prefs.autoReview === "boolean") {
+        setAutoReview(prefs.autoReview);
+      }
+    });
+  }, []);
+
+  // Re-load prefs when returning from settings so toggle changes apply immediately
+  useEffect(() => {
+    if (!settingsPage) {
       inputRef.current?.focus();
+      chrome.storage.local.get([PREF_KEY], (result) => {
+        const prefs = result[PREF_KEY] as { autoReview?: boolean } | undefined;
+        if (prefs && typeof prefs.autoReview === "boolean") {
+          setAutoReview(prefs.autoReview);
+        }
+      });
     }
-  }, [showHelp]);
+  }, [settingsPage]);
 
   async function handleAddEvent() {
     const text = inputRef.current?.value.trim() ?? "";
@@ -47,8 +104,13 @@ function App() {
         throw new Error("Not authenticated");
       }
       const event = await parseEvent(text, idToken);
-      await createCalendarEvent(calendarToken, event);
-      setStatus("success");
+
+      if (autoReview) {
+        await createCalendarEvent(calendarToken, event);
+        setStatus("success");
+      } else {
+        chrome.tabs.create({ url: buildGoogleCalendarUrl(event) });
+      }
     } catch (err) {
       setStatus("error");
       setErrorMessage((err as Error).message);
@@ -59,15 +121,29 @@ function App() {
     return <SignIn />;
   }
 
-  if (user && showHelp) {
-    return <HelpPage onBack={() => setShowHelp(false)} />;
+  if (user && settingsPage === "settings") {
+    return (
+      <SettingsPage
+        onBack={() => setSettingsPage(null)}
+        onNavigate={(page) => setSettingsPage(page)}
+      />
+    );
+  }
+  if (user && settingsPage === "help") {
+    return <HelpContentPage onBack={() => setSettingsPage("settings")} />;
+  }
+  if (user && settingsPage === "preferences") {
+    return <PreferencesPage onBack={() => setSettingsPage("settings")} />;
+  }
+  if (user && settingsPage === "coffee") {
+    return <CoffeePage onBack={() => setSettingsPage("settings")} />;
   }
 
   const gearButton = (
     <button
       className="gear-btn"
       aria-label="Settings"
-      onClick={() => setShowHelp(true)}
+      onClick={() => setSettingsPage("settings")}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -101,12 +177,9 @@ function App() {
         disabled={status === "loading" || authLoading}
         onClick={handleAddEvent}
       >
-        {status === "loading" ? "Adding…" : "Add Event"}
+        {status === "loading" ? "Parsing…" : "Add Event"}
       </button>
 
-      {status === "loading" && (
-        <p className="status-msg status-loading">Adding to Calendar…</p>
-      )}
       {status === "success" && (
         <p className="status-msg status-success">
           <svg

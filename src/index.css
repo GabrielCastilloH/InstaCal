@@ -8,10 +8,23 @@
   src: url('/fonts/Sanchez-Regular.ttf') format('truetype');
 }
 
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   padding: 0;
   width: 320px;
   height: 280px;
   background-color: #FCFDFE;
+  overscroll-behavior: none;
 }
