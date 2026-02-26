@@ -238,9 +238,6 @@ function App() {
         {status === "loading" ? "Parsing…" : "Add Event"}
       </button>
 
-      {status === "loading" && (
-        <p className="status-msg status-loading">Parsing your event…</p>
-      )}
       {status === "success" && (
         <p className="status-msg status-success">
           <svg
