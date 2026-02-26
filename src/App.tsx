@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { onAuthStateChanged, signInWithCredential, GoogleAuthProvider } from "firebase/auth";
+import { signInWithCredential, GoogleAuthProvider, type User } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
@@ -8,7 +8,7 @@ import CoffeePage from "./components/CoffeePage";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
 import { parseEvent, type ParsedEvent } from "./services/parseEvent";
-import { getFirebaseIdToken, getGoogleCalendarToken, setGoogleCalendarToken } from "./services/auth";
+import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
 import "./App.css";
 
@@ -29,7 +29,7 @@ type SettingsPageType = "settings" | "help" | "preferences" | "coffee";
 
 function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const [user, setUser] = useState(auth.currentUser);
+  const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [autoReview, setAutoReview] = useState(true);
   const [pendingEvent, setPendingEvent] = useState<ParsedEvent | null>(null);
@@ -40,38 +40,33 @@ function App() {
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setAuthLoading(false);
-    });
-    return () => unsub();
-  }, []);
+    let cancelled = false;
 
-  // Complete sign-in if the background script stored a pending OAuth token
-  useEffect(() => {
-    chrome.storage.local.get(["instacal_pending_auth"], async (result) => {
-      const pending = result.instacal_pending_auth as { accessToken?: string; error?: string } | undefined;
-      if (!pending) return;
-
-      await chrome.storage.local.remove("instacal_pending_auth");
-
-      if (pending.error) {
-        console.error("[App] Auth failed in background:", pending.error);
-        return;
-      }
-
-      if (pending.accessToken) {
+    async function init() {
+      // Check for a stored Google token and re-authenticate
+      const googleToken = await getGoogleCalendarToken();
+      if (googleToken) {
         try {
-          const credential = GoogleAuthProvider.credential(null, pending.accessToken);
-          const userResult = await signInWithCredential(auth, credential);
-          if (userResult.user) {
-            await setGoogleCalendarToken(pending.accessToken);
+          const credential = GoogleAuthProvider.credential(null, googleToken);
+          const result = await signInWithCredential(auth, credential);
+          if (!cancelled) {
+            setUser(result.user);
+            setAuthLoading(false);
           }
-        } catch (err) {
-          console.error("[App] signInWithCredential failed:", err);
+          return;
+        } catch {
+          await clearGoogleCalendarToken();
         }
       }
-    });
+
+      if (!cancelled) {
+        setUser(null);
+        setAuthLoading(false);
+      }
+    }
+
+    init();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {

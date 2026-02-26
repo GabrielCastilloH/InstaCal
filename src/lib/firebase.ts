@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { initializeAuth, indexedDBLocalPersistence } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,19 +11,12 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
-console.log('[Firebase Config] Initializing with:', {
-  apiKey: firebaseConfig.apiKey ? '✓ present' : '✗ missing',
-  authDomain: firebaseConfig.authDomain || '✗ missing',
-  projectId: firebaseConfig.projectId || '✗ missing',
-  storageBucket: firebaseConfig.storageBucket || '✗ missing',
-  messagingSenderId: firebaseConfig.messagingSenderId || '✗ missing',
-  appId: firebaseConfig.appId ? '✓ present' : '✗ missing',
-  measurementId: firebaseConfig.measurementId || '✗ missing',
-})
-
 export const app = initializeApp(firebaseConfig)
-console.log('[Firebase] App initialized successfully')
 
-export const auth = getAuth(app)
-console.log('[Firebase Auth] Auth instance created')
+// Use initializeAuth (not getAuth) so persistence is set synchronously at startup —
+// avoids a race where signInWithCredential saves to localStorage before setPersistence
+// switches to indexedDB, causing the session to vanish on the next popup open.
+export const auth = initializeAuth(app, {
+  persistence: indexedDBLocalPersistence,
+})
 
