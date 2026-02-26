@@ -19,6 +19,11 @@ Simply type something like **"Lunch with Sarah tomorrow at noon"** and InstaCal 
 - **Backend**: Firebase Cloud Functions
 - **Auth**: Firebase Authentication
 
+## Future Enhancements
+
+- Add stars and decoration to the sign in page
+- Improve loading indicator
+
 ## Setup
 
 See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for Firebase configuration and deployment.
