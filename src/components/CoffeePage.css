@@ -42,11 +42,12 @@
 }
 
 .coffee-link {
-  color: var(--dark-azure);
+  color: var(--color-text-secondary);
   text-decoration: none;
   font-weight: 600;
 }
 
 .coffee-link:hover {
+  color: var(--color-interactive-hover);
   text-decoration: underline;
 }

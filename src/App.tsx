@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signInWithCredential, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
@@ -7,10 +7,23 @@ import PreferencesPage from "./components/PreferencesPage";
 import CoffeePage from "./components/CoffeePage";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
-import { parseEvent } from "./services/parseEvent";
-import { getFirebaseIdToken, getGoogleCalendarToken } from "./services/auth";
+import { parseEvent, type ParsedEvent } from "./services/parseEvent";
+import { getFirebaseIdToken, getGoogleCalendarToken, setGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
 import "./App.css";
+
+const PREF_KEY = "instacal_prefs";
+
+function formatEventTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 type SettingsPageType = "settings" | "help" | "preferences" | "coffee";
 
@@ -18,6 +31,8 @@ function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [user, setUser] = useState(auth.currentUser);
   const [authLoading, setAuthLoading] = useState(true);
+  const [autoReview, setAutoReview] = useState(true);
+  const [pendingEvent, setPendingEvent] = useState<ParsedEvent | null>(null);
   const [settingsPage, setSettingsPage] = useState<SettingsPageType | null>(null);
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
@@ -32,9 +47,52 @@ function App() {
     return () => unsub();
   }, []);
 
+  // Complete sign-in if the background script stored a pending OAuth token
+  useEffect(() => {
+    chrome.storage.local.get(["instacal_pending_auth"], async (result) => {
+      const pending = result.instacal_pending_auth as { accessToken?: string; error?: string } | undefined;
+      if (!pending) return;
+
+      await chrome.storage.local.remove("instacal_pending_auth");
+
+      if (pending.error) {
+        console.error("[App] Auth failed in background:", pending.error);
+        return;
+      }
+
+      if (pending.accessToken) {
+        try {
+          const credential = GoogleAuthProvider.credential(null, pending.accessToken);
+          const userResult = await signInWithCredential(auth, credential);
+          if (userResult.user) {
+            await setGoogleCalendarToken(pending.accessToken);
+          }
+        } catch (err) {
+          console.error("[App] signInWithCredential failed:", err);
+        }
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    chrome.storage.local.get([PREF_KEY], (result) => {
+      const prefs = result[PREF_KEY] as { autoReview?: boolean } | undefined;
+      if (prefs && typeof prefs.autoReview === "boolean") {
+        setAutoReview(prefs.autoReview);
+      }
+    });
+  }, []);
+
+  // Re-load prefs when returning from settings so toggle changes apply immediately
   useEffect(() => {
     if (!settingsPage) {
       inputRef.current?.focus();
+      chrome.storage.local.get([PREF_KEY], (result) => {
+        const prefs = result[PREF_KEY] as { autoReview?: boolean } | undefined;
+        if (prefs && typeof prefs.autoReview === "boolean") {
+          setAutoReview(prefs.autoReview);
+        }
+      });
     }
   }, [settingsPage]);
 
@@ -52,12 +110,40 @@ function App() {
         throw new Error("Not authenticated");
       }
       const event = await parseEvent(text, idToken);
-      await createCalendarEvent(calendarToken, event);
+
+      if (autoReview) {
+        await createCalendarEvent(calendarToken, event);
+        setStatus("success");
+      } else {
+        // Show review step before adding
+        setPendingEvent(event);
+        setStatus("idle");
+      }
+    } catch (err) {
+      setStatus("error");
+      setErrorMessage((err as Error).message);
+    }
+  }
+
+  async function handleConfirmEvent() {
+    if (!pendingEvent) return;
+    setStatus("loading");
+    try {
+      const calendarToken = await getGoogleCalendarToken();
+      if (!calendarToken) throw new Error("Not authenticated");
+      await createCalendarEvent(calendarToken, pendingEvent);
+      setPendingEvent(null);
       setStatus("success");
     } catch (err) {
       setStatus("error");
       setErrorMessage((err as Error).message);
     }
+  }
+
+  function handleEditEvent() {
+    setPendingEvent(null);
+    setStatus("idle");
+    setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   if (!authLoading && !user) {
@@ -105,6 +191,35 @@ function App() {
     </button>
   );
 
+  if (pendingEvent) {
+    return (
+      <div className="popup-container">
+        <PageHeader useLogo rightButton={gearButton} />
+        <h2 className="subheading">does this look right?</h2>
+        <div className="review-card">
+          <p className="review-title">{pendingEvent.title}</p>
+          <p className="review-time">{formatEventTime(pendingEvent.start)} → {formatEventTime(pendingEvent.end)}</p>
+          {pendingEvent.location && (
+            <p className="review-location">{pendingEvent.location}</p>
+          )}
+        </div>
+        <div className="review-actions">
+          <button className="review-edit-btn" onClick={handleEditEvent}>Edit</button>
+          <button
+            className="review-confirm-btn"
+            disabled={status === "loading"}
+            onClick={handleConfirmEvent}
+          >
+            {status === "loading" ? "Adding…" : "Confirm"}
+          </button>
+        </div>
+        {status === "error" && (
+          <p className="status-msg status-error">{errorMessage ?? "Something went wrong."}</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="popup-container">
       <PageHeader useLogo rightButton={gearButton} />
@@ -120,11 +235,11 @@ function App() {
         disabled={status === "loading" || authLoading}
         onClick={handleAddEvent}
       >
-        {status === "loading" ? "Adding…" : "Add Event"}
+        {status === "loading" ? "Parsing…" : "Add Event"}
       </button>
 
       {status === "loading" && (
-        <p className="status-msg status-loading">Adding to Calendar…</p>
+        <p className="status-msg status-loading">Parsing your event…</p>
       )}
       {status === "success" && (
         <p className="status-msg status-success">
