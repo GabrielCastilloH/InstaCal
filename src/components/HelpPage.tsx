@@ -1,3 +1,7 @@
+import { signOut } from 'firebase/auth'
+import { auth } from '../lib/firebase'
+import { clearGoogleCalendarToken } from '../services/auth'
+import PageHeader from './PageHeader'
 import './HelpPage.css'
 
 interface HelpPageProps {
@@ -5,16 +9,22 @@ interface HelpPageProps {
 }
 
 export default function HelpPage({ onBack }: HelpPageProps) {
+  async function handleSignOut() {
+    await clearGoogleCalendarToken()
+    await signOut(auth)
+    onBack() // Reset help view before auth state updates
+  }
+  const backButton = (
+    <button className="back-btn" onClick={onBack} aria-label="Back">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+  )
+
   return (
     <div className="help-container">
-
-      <button className="back-btn" onClick={onBack} aria-label="Back">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-      </button>
-
-      <h1 className="help-title">Support</h1>
+      <PageHeader title="Support" leftButton={backButton} />
 
      {/* <p className="help-tagline">AI-powered event scheduling</p> */}
 
@@ -49,6 +59,10 @@ export default function HelpPage({ onBack }: HelpPageProps) {
           <a href="mailto:gac232@cornell.edu">gac232@cornell.edu</a>
         </div>
       </div>
+
+      <button className="signout-btn" onClick={handleSignOut}>
+        Sign out
+      </button>
 
     </div>
   )

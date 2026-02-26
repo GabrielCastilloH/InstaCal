@@ -25,3 +25,6 @@ dist-ssr
 
 .claudeserver/.env
 server/.env
+.env
+.env.local
+functions/.env.local

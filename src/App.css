@@ -15,9 +15,6 @@
 }
 
 .gear-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -27,27 +24,25 @@
   background: none;
   border: none;
   border-radius: 6px;
-  color: var(--grey-azure);
+  color: var(--color-text-muted);
   cursor: pointer;
   transition: color 0.15s, background-color 0.15s;
 }
 
 .gear-btn:hover {
-  color: var(--dark-azure);
-  background-color: var(--light-azure);
+  color: var(--color-interactive-hover);
+  background-color: var(--color-bg-subtle);
 }
 
-.logo {
-  height: 44px;
-  width: auto;
-  margin: 0;
+.popup-container .page-header {
+  margin-bottom: 0;
 }
 
 .subheading {
-  margin: 6px 0 20px;
+  margin: 0 0 20px;
   font-size: 13px;
   font-weight: 400;
-  color: var(--grey-azure);
+  color: var(--color-text-muted);
   text-align: center;
   letter-spacing: 0.04em;
   text-transform: lowercase;
@@ -58,31 +53,36 @@
   flex: 1;
   box-sizing: border-box;
   padding: 10px 14px;
-  border: 1.5px solid var(--med-azure);
+  border: 1.5px solid var(--color-border-default);
   border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
-  color: var(--dark-grey-azure);
-  caret-color: var(--dark-grey-azure);
-  background-color: var(--light-azure);
+  color: var(--color-text-primary);
+  caret-color: var(--color-text-primary);
+  background-color: var(--color-bg-subtle);
   outline: none;
   resize: none;
   transition: border-color 0.15s;
 }
 
 .event-input::placeholder {
-  color: var(--grey-azure);
+  color: var(--color-text-muted);
 }
 
 .event-input:focus {
-  border-color: var(--dark-azure);
+  border-color: var(--color-border-focus);
+}
+
+.event-input-loading {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .add-event-btn {
   width: 100%;
   margin-top: 12px;
   padding: 9px 0;
-  background-color: var(--med-azure);
+  background-color: var(--color-interactive-primary);
   color: #ffffff;
   font-family: inherit;
   font-size: 14px;
@@ -94,7 +94,7 @@
 }
 
 .add-event-btn:hover:not(:disabled) {
-  background-color: var(--dark-azure);
+  background-color: var(--color-interactive-hover);
 }
 
 .add-event-btn:disabled {
@@ -112,11 +112,11 @@
 }
 
 .status-loading {
-  color: var(--grey-azure);
+  color: var(--color-text-muted);
 }
 
 .status-success {
-  color: var(--dark-azure);
+  color: var(--color-interactive-hover);
   font-weight: 600;
 }
 

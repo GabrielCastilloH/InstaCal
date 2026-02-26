@@ -1,7 +1,20 @@
 :root {
-  --dark-azure:      #345e7d;
-  --med-azure:       #6da7cc;
-  --light-azure:     #e3ebf2;
-  --dark-grey-azure: #2b4257;
-  --grey-azure:      #88a9c3;
+  /* Base color scale: 100 (lightest) to 900 (darkest) */
+  --color-primary-100: #e3ebf2;
+  --color-primary-400: #88a9c3;
+  --color-primary-500: #6da7cc;
+  --color-primary-600: #5a7a8f;
+  --color-primary-700: #345e7d;
+  --color-primary-900: #2b4257;
+
+  /* Semantic aliases */
+  --color-bg-subtle: var(--color-primary-100);
+  --color-text-primary: var(--color-primary-900);
+  --color-text-secondary: var(--color-primary-700);
+  --color-text-tertiary: var(--color-primary-600);
+  --color-text-muted: var(--color-primary-400);
+  --color-border-default: var(--color-primary-500);
+  --color-border-focus: var(--color-primary-700);
+  --color-interactive-primary: var(--color-primary-500);
+  --color-interactive-hover: var(--color-primary-700);
 }
