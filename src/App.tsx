@@ -3,7 +3,7 @@ import { signInWithCredential, GoogleAuthProvider, type User } from "firebase/au
 import { auth } from "./lib/firebase";
 import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
-import PreferencesPage, { PREF_KEY } from "./components/PreferencesPage";
+import PreferencesPage, { PREF_KEY, DEFAULT_PREFS, type Prefs } from "./components/PreferencesPage";
 import CoffeePage from "./components/CoffeePage";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
@@ -29,7 +29,7 @@ function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [autoReview, setAutoReview] = useState(true);
+  const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   const [settingsPage, setSettingsPage] = useState<SettingsPageType | null>(null);
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
@@ -66,25 +66,20 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
+  function loadPrefsIntoState() {
     chrome.storage.local.get([PREF_KEY], (result) => {
-      const prefs = result[PREF_KEY] as { autoReview?: boolean } | undefined;
-      if (prefs && typeof prefs.autoReview === "boolean") {
-        setAutoReview(prefs.autoReview);
-      }
+      const stored = result[PREF_KEY] as Partial<Prefs> | undefined;
+      if (stored) setPrefs({ ...DEFAULT_PREFS, ...stored });
     });
-  }, []);
+  }
 
-  // Re-load prefs when returning from settings so toggle changes apply immediately
+  useEffect(() => { loadPrefsIntoState(); }, []);
+
+  // Re-load prefs when returning from settings so changes apply immediately
   useEffect(() => {
     if (!settingsPage) {
       inputRef.current?.focus();
-      chrome.storage.local.get([PREF_KEY], (result) => {
-        const prefs = result[PREF_KEY] as { autoReview?: boolean } | undefined;
-        if (prefs && typeof prefs.autoReview === "boolean") {
-          setAutoReview(prefs.autoReview);
-        }
-      });
+      loadPrefsIntoState();
     }
   }, [settingsPage]);
 
@@ -101,9 +96,14 @@ function App() {
       if (!idToken || !calendarToken) {
         throw new Error("Not authenticated");
       }
-      const event = await parseEvent(text, idToken);
+      const event = await parseEvent(text, idToken, {
+        smartDefaults: prefs.smartDefaults,
+        defaultDuration: prefs.defaultDuration,
+        defaultStartTime: prefs.defaultStartTime,
+        defaultLocation: prefs.defaultLocation,
+      });
 
-      if (autoReview) {
+      if (prefs.autoReview) {
         await createCalendarEvent(calendarToken, event);
         setStatus("success");
       } else {
