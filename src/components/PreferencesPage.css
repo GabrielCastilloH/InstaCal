@@ -70,6 +70,83 @@
   line-height: 1.45;
 }
 
+/* Input controls */
+.pref-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.pref-input-suffix {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.pref-number-input {
+  width: 52px;
+  padding: 4px 6px;
+  border: 1.5px solid color-mix(in srgb, var(--color-text-muted) 40%, transparent);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  background: none;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+  -moz-appearance: textfield;
+}
+
+.pref-number-input::-webkit-inner-spin-button,
+.pref-number-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pref-number-input:focus {
+  border-color: var(--color-interactive-primary);
+}
+
+.pref-time-input {
+  flex-shrink: 0;
+  padding: 4px 6px;
+  border: 1.5px solid color-mix(in srgb, var(--color-text-muted) 40%, transparent);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  background: none;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.pref-time-input:focus {
+  border-color: var(--color-interactive-primary);
+}
+
+.pref-text-input {
+  flex-shrink: 0;
+  width: 80px;
+  padding: 4px 8px;
+  border: 1.5px solid color-mix(in srgb, var(--color-text-muted) 40%, transparent);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  background: none;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.pref-text-input:focus {
+  border-color: var(--color-interactive-primary);
+}
+
+.pref-text-input::placeholder {
+  color: var(--color-text-muted);
+}
+
 /* Toggle switch */
 .toggle {
   flex-shrink: 0;

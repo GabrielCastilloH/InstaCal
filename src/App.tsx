@@ -3,7 +3,7 @@ import { signInWithCredential, GoogleAuthProvider, type User } from "firebase/au
 import { auth } from "./lib/firebase";
 import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
-import PreferencesPage from "./components/PreferencesPage";
+import PreferencesPage, { PREF_KEY } from "./components/PreferencesPage";
 import CoffeePage from "./components/CoffeePage";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
@@ -11,8 +11,6 @@ import { parseEvent, type ParsedEvent } from "./services/parseEvent";
 import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
 import "./App.css";
-
-const PREF_KEY = "instacal_prefs";
 
 function buildGoogleCalendarUrl(event: ParsedEvent): string {
   const fmt = (iso: string) => iso.slice(0, 19).replace(/-/g, "").replace(/:/g, "");
