@@ -34,8 +34,12 @@
   background-color: var(--light-azure);
 }
 
+.popup-container .page-header {
+  margin-bottom: 0;
+}
+
 .subheading {
-  margin: 2px 0 20px;
+  margin: 0 0 20px;
   font-size: 13px;
   font-weight: 400;
   color: var(--grey-azure);
