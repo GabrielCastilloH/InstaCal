@@ -2,7 +2,7 @@ import { useState } from "react";
 import { signInWithCredential, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { setGoogleCalendarToken } from "../services/auth";
-import logoLarge from "../assets/logo-large.svg";
+import PageHeader from "./PageHeader";
 import "./SignIn.css";
 
 interface SignInProps {
@@ -105,8 +105,8 @@ export default function SignIn({ onSuccess }: SignInProps) {
 
   return (
     <div className="signin-container">
-      <div className="signin-header">
-        <img src={logoLarge} alt="InstaCal" className="signin-logo" />
+      <div className="signin-page-header">
+        <PageHeader useLogo />
       </div>
 
       <div className="signin-body">
