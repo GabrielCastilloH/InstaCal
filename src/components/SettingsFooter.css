@@ -14,6 +14,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  padding-left: 16px;
 }
 
 .settings-footer-label {
@@ -21,18 +22,26 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .settings-footer-emails {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  margin: 0;
+  padding-left: 16px;
+  list-style-type: disc;
+}
+
+.settings-footer-emails li::marker {
+  color: var(--color-text-secondary);
+}
+
+.settings-footer-emails li {
+  margin-bottom: 2px;
 }
 
 .settings-footer-emails a {
   font-size: 11.5px;
-  color: var(--color-interactive-primary);
+  color: var(--color-text-secondary);
   text-decoration: none;
   transition: color 0.15s;
 }
@@ -40,29 +49,6 @@
 .settings-footer-emails a:hover {
   color: var(--color-interactive-hover);
   text-decoration: underline;
-}
-
-.settings-footer-dot {
-  font-size: 11.5px;
-  color: var(--color-text-muted);
-}
-
-.settings-footer-signout {
-  padding: 5px 14px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  background: none;
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
-}
-
-.settings-footer-signout:hover {
-  color: var(--color-interactive-hover);
-  background-color: var(--color-bg-subtle);
-  border-color: var(--color-interactive-hover);
 }
 
 .settings-footer-credit {

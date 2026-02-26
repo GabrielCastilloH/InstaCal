@@ -1,4 +1,4 @@
-@import '../styles/colors.css';
+@import "../styles/colors.css";
 
 .settings-container {
   position: relative;
@@ -10,7 +10,13 @@
   padding: 16px 20px 18px;
   box-sizing: border-box;
   border-radius: 12px;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
   overflow-y: auto;
 }
 
@@ -26,7 +32,9 @@
   border-radius: 6px;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: color 0.15s, background-color 0.15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s;
 }
 
 .back-btn:hover {
@@ -40,6 +48,27 @@
   flex-direction: column;
   gap: 2px;
   margin-bottom: 16px;
+}
+
+.settings-signout-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: none;
+  border: 1.5px solid var(--color-text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+
+.settings-signout-btn:hover {
+  color: var(--color-interactive-hover);
+  background-color: var(--color-bg-subtle);
+  border-color: var(--color-interactive-hover);
 }
 
 .settings-row {
@@ -74,7 +103,7 @@
 .settings-row-label {
   flex: 1;
   font-size: 13px;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
 }
 
 .settings-row-chevron {
