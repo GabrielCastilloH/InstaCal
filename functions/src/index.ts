@@ -17,6 +17,8 @@ const app = express()
 app.use(cors({ origin: true }))
 app.use(express.json())
 
+const DAILY_LIMIT = 5
+
 function getGeminiApiKey(): string {
   return process.env.GEMINI_API_KEY ?? geminiSecret.value()
 }
@@ -33,11 +35,41 @@ async function verifyAuth(
   }
   const token = authHeader.slice(7)
   try {
-    await admin.auth().verifyIdToken(token)
+    const decoded = await admin.auth().verifyIdToken(token)
+    res.locals.uid = decoded.uid
     next()
   } catch {
     res.status(401).json({ error: 'unauthorized' })
   }
+}
+
+async function checkRateLimit(uid: string): Promise<void> {
+  const db = admin.firestore()
+  const ref = db.doc(`usage/${uid}`)
+  const today = new Date().toISOString().slice(0, 10) // "YYYY-MM-DD"
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref)
+
+    if (!snap.exists) {
+      tx.set(ref, { count: 1, lastResetDate: today })
+      return
+    }
+
+    const { count, lastResetDate } = snap.data() as { count: number; lastResetDate: string }
+
+    if (lastResetDate !== today) {
+      // New day — lazy reset
+      tx.set(ref, { count: 1, lastResetDate: today })
+      return
+    }
+
+    if (count >= DAILY_LIMIT) {
+      throw new Error('RATE_LIMIT_EXCEEDED')
+    }
+
+    tx.update(ref, { count: count + 1 })
+  })
 }
 
 app.get('/health', (_req: Request, res: Response) => {
@@ -58,6 +90,18 @@ app.post(
     if (!text || text.trim().length === 0) {
       res.status(400).json({ error: 'text is required' })
       return
+    }
+
+    const uid = res.locals.uid as string
+
+    try {
+      await checkRateLimit(uid)
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === 'RATE_LIMIT_EXCEEDED') {
+        res.status(429).json({ error: `Daily limit of ${DAILY_LIMIT} reached. Try again tomorrow.` })
+        return
+      }
+      throw err
     }
 
     const nowISO = now ?? new Date().toISOString()
