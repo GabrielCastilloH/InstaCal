@@ -6,6 +6,7 @@ export type ParsedEvent = {
   end: string
   location: string | null
   description: string | null
+  recurrence: string | null
 }
 
 const SYSTEM_PROMPT = `You are a calendar parsing assistant.
@@ -18,6 +19,7 @@ Extract the event and return ONLY a valid JSON object — no markdown, no explan
   "end":         string   — ISO-8601 local datetime, no timezone offset
   "location":    string | null
   "description": string | null
+  "recurrence":  string | null  — RFC 5545 RRULE string if the event repeats, otherwise null
 
 Rules:
 - Resolve relative expressions ("tomorrow", "next Monday", "in 3 days") using the current date above.
@@ -27,6 +29,21 @@ Rules:
 - If only a date is provided (no time), set start time to 09:00 and end time to 10:00.
 - If no year is mentioned, assume the nearest future occurrence.
 - All times should be interpreted in 12-hour context unless clearly 24-hour (e.g. "4" = 4:00 PM if in the afternoon/evening context, "9" = 9:00 AM if in a morning context).
+- For recurring events, set "recurrence" to a valid RRULE string (without the "RRULE:" prefix — just the rule itself, e.g. "FREQ=WEEKLY;BYDAY=TU"). For non-recurring events, set "recurrence" to null.
+- Recurrence examples:
+    "every Tuesday"                  → "FREQ=WEEKLY;BYDAY=TU"
+    "every Monday and Wednesday"     → "FREQ=WEEKLY;BYDAY=MO,WE"
+    "every weekday"                  → "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
+    "every weekend"                  → "FREQ=WEEKLY;BYDAY=SA,SU"
+    "every day" / "daily"            → "FREQ=DAILY"
+    "every week" / "weekly"          → "FREQ=WEEKLY"
+    "every month" / "monthly"        → "FREQ=MONTHLY"
+    "every year" / "annually"        → "FREQ=YEARLY"
+    "every other week"               → "FREQ=WEEKLY;INTERVAL=2"
+    "every two weeks"                → "FREQ=WEEKLY;INTERVAL=2"
+    "every first Monday of the month"→ "FREQ=MONTHLY;BYDAY=1MO"
+    "every last Friday"              → "FREQ=MONTHLY;BYDAY=-1FR"
+- For "start", use the first (nearest future) occurrence of the recurring day/time.
 - Output ONLY the JSON object. Any other text will cause an error.`
 
 function isValidParsedEvent(obj: unknown): obj is ParsedEvent {
@@ -37,7 +54,8 @@ function isValidParsedEvent(obj: unknown): obj is ParsedEvent {
     typeof e.start === 'string' &&
     typeof e.end === 'string' &&
     (e.location === null || typeof e.location === 'string') &&
-    (e.description === null || typeof e.description === 'string')
+    (e.description === null || typeof e.description === 'string') &&
+    (e.recurrence === null || typeof e.recurrence === 'string')
   )
 }
 

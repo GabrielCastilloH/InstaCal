@@ -22,6 +22,7 @@ function buildGoogleCalendarUrl(event: ParsedEvent): string {
   url.searchParams.set("dates", dates);
   if (event.location) url.searchParams.set("location", event.location);
   if (event.description) url.searchParams.set("details", event.description);
+  if (event.recurrence) url.searchParams.set("recur", `RRULE:${event.recurrence}`);
   return url.toString();
 }
 

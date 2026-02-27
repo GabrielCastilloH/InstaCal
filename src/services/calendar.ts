@@ -11,6 +11,7 @@ export async function createCalendarEvent(token: string, event: ParsedEvent): Pr
     end: { dateTime: event.end, timeZone },
     ...(event.location != null && { location: event.location }),
     ...(event.description != null && { description: event.description }),
+    ...(event.recurrence != null && { recurrence: [`RRULE:${event.recurrence}`] }),
   }
 
   const response = await fetch(CALENDAR_API, {
