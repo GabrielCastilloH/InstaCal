@@ -61,6 +61,7 @@
 /* Defaults box — styled like the help-examples box */
 .pref-defaults-box {
   width: 100%;
+  margin-top: 6px;
   background-color: var(--color-bg-subtle);
   border-radius: 8px;
   padding: 4px 8px;
@@ -73,6 +74,12 @@
   border-bottom: 1px solid color-mix(in srgb, var(--color-text-muted) 20%, transparent);
   border-radius: 0;
   padding: 6px 4px;
+}
+
+.pref-defaults-box .pref-input-group,
+.pref-defaults-box .pref-time-input,
+.pref-defaults-box .pref-text-input {
+  width: 95px;
 }
 
 .pref-defaults-box .pref-row:last-child {
@@ -118,8 +125,10 @@
 }
 
 .pref-number-input {
-  width: 52px;
-  padding: 4px 6px;
+  width: 95px;
+  height: 28px;
+  padding: 0 6px;
+  box-sizing: border-box;
   border: 1.5px solid color-mix(in srgb, var(--color-text-muted) 40%, transparent);
   border-radius: 6px;
   font-size: 12px;
@@ -144,7 +153,10 @@
 
 .pref-time-input {
   flex-shrink: 0;
-  padding: 4px 6px;
+  width: 95px;
+  height: 28px;
+  padding: 0 6px;
+  box-sizing: border-box;
   border: 1.5px solid color-mix(in srgb, var(--color-text-muted) 40%, transparent);
   border-radius: 6px;
   font-size: 12px;
@@ -155,14 +167,23 @@
   transition: border-color 0.15s;
 }
 
+.pref-time-input::-webkit-calendar-picker-indicator {
+  margin-left: 0;
+  padding-left: 0;
+  filter: brightness(0) saturate(100%);
+  opacity: 0.7;
+}
+
 .pref-time-input:focus {
   border-color: var(--color-interactive-primary);
 }
 
 .pref-text-input {
   flex-shrink: 0;
-  width: 80px;
-  padding: 4px 8px;
+  width: 95px;
+  height: 28px;
+  padding: 0 8px;
+  box-sizing: border-box;
   border: 1.5px solid color-mix(in srgb, var(--color-text-muted) 40%, transparent);
   border-radius: 6px;
   font-size: 12px;
