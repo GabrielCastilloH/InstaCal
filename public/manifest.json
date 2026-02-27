@@ -16,7 +16,7 @@
       "48": "icons/logo-48.png"
     }
   },
-  "permissions": ["storage", "identity", "tabs"],
+  "permissions": ["storage", "identity", "tabs", "contextMenus"],
   "host_permissions": [
     "https://www.googleapis.com/*",
     "https://us-central1-instacal-app.cloudfunctions.net/*",

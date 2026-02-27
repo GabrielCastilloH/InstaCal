@@ -75,6 +75,22 @@ function App() {
 
   useEffect(() => { loadPrefsIntoState(); }, []);
 
+  // Process text from context menu (highlight → right-click → Add to InstaCal)
+  useEffect(() => {
+    if (!user || authLoading || settingsPage) return;
+
+    chrome.storage.local.get(['instacal_context_text'], (result) => {
+      const text = result?.instacal_context_text as string | undefined;
+      if (!text?.trim()) return;
+
+      chrome.storage.local.remove(['instacal_context_text']);
+      if (inputRef.current) {
+        inputRef.current.value = text.trim();
+        handleAddEvent();
+      }
+    });
+  }, [user, authLoading, settingsPage]);
+
   // Re-load prefs when returning from settings so changes apply immediately
   useEffect(() => {
     if (!settingsPage) {
