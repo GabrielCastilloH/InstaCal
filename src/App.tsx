@@ -65,7 +65,22 @@ function App() {
     }
 
     init();
-    return () => { cancelled = true; };
+
+    // Re-run auth when the token is written by the auth tab after sign-in
+    function onStorageChanged(
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string,
+    ) {
+      if (area === "local" && changes["instacal_google_calendar_token"]?.newValue) {
+        init();
+      }
+    }
+    chrome.storage.onChanged.addListener(onStorageChanged);
+
+    return () => {
+      cancelled = true;
+      chrome.storage.onChanged.removeListener(onStorageChanged);
+    };
   }, []);
 
   useEffect(() => {
