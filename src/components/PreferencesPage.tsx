@@ -2,15 +2,25 @@ import { useEffect, useState } from 'react'
 import PageHeader from './PageHeader'
 import './PreferencesPage.css'
 
-const PREF_KEY = 'instacal_prefs'
+export const PREF_KEY = 'instacal_prefs'
 
-interface Prefs {
+export interface Prefs {
   autoReview: boolean
+  smartDefaults: boolean
+  defaultDuration: number
+  defaultStartTime: string
+  defaultLocation: string
 }
 
-const DEFAULT_PREFS: Prefs = { autoReview: true }
+export const DEFAULT_PREFS: Prefs = {
+  autoReview: true,
+  smartDefaults: true,
+  defaultDuration: 60,
+  defaultStartTime: '12:00',
+  defaultLocation: 'TBD',
+}
 
-async function loadPrefs(): Promise<Prefs> {
+export async function loadPrefs(): Promise<Prefs> {
   return new Promise((resolve) => {
     chrome.storage.local.get([PREF_KEY], (result) => {
       resolve({ ...DEFAULT_PREFS, ...(result[PREF_KEY] as Partial<Prefs> ?? {}) })
@@ -35,9 +45,9 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
     loadPrefs().then(setPrefs)
   }, [])
 
-  async function toggle(key: keyof Prefs) {
+  async function updatePref<K extends keyof Prefs>(key: K, value: Prefs[K]) {
     if (!prefs) return
-    const updated = { ...prefs, [key]: !prefs[key] }
+    const updated = { ...prefs, [key]: value }
     setPrefs(updated)
     await savePrefs(updated)
   }
@@ -62,7 +72,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
           </div>
           <button
             className={`toggle ${prefs?.autoReview ? 'toggle-on' : 'toggle-off'}`}
-            onClick={() => toggle('autoReview')}
+            onClick={() => updatePref('autoReview', !prefs?.autoReview)}
             aria-label="Toggle auto-add"
             role="switch"
             aria-checked={prefs?.autoReview ?? false}
@@ -71,6 +81,76 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             <span className="toggle-thumb" />
           </button>
         </div>
+
+        <div className="pref-row pref-row-no-border">
+          <div className="pref-text">
+            <span className="pref-label">Smart defaults</span>
+            <span className="pref-description">AI picks time and duration based on the event type.</span>
+          </div>
+          <button
+            className={`toggle ${prefs?.smartDefaults ? 'toggle-on' : 'toggle-off'}`}
+            onClick={() => updatePref('smartDefaults', !prefs?.smartDefaults)}
+            aria-label="Toggle smart defaults"
+            role="switch"
+            aria-checked={prefs?.smartDefaults ?? true}
+            disabled={prefs === null}
+          >
+            <span className="toggle-thumb" />
+          </button>
+        </div>
+
+        {!prefs?.smartDefaults && (
+          <div className="pref-defaults-box">
+            <div className="pref-row">
+              <div className="pref-text">
+                <span className="pref-label">Default duration</span>
+              </div>
+              <div className="pref-input-group">
+                <input
+                  type="number"
+                  className="pref-number-input"
+                  min={15}
+                  max={480}
+                  step={15}
+                  value={prefs?.defaultDuration ?? DEFAULT_PREFS.defaultDuration}
+                  disabled={prefs === null}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10)
+                    if (!isNaN(v) && v >= 15 && v <= 480) updatePref('defaultDuration', v)
+                  }}
+                />
+                <span className="pref-input-suffix">min</span>
+              </div>
+            </div>
+
+            <div className="pref-row">
+              <div className="pref-text">
+                <span className="pref-label">Default start time</span>
+              </div>
+              <input
+                type="time"
+                className="pref-time-input"
+                value={prefs?.defaultStartTime ?? DEFAULT_PREFS.defaultStartTime}
+                disabled={prefs === null}
+                onChange={(e) => updatePref('defaultStartTime', e.target.value)}
+              />
+            </div>
+
+            <div className="pref-row">
+              <div className="pref-text">
+                <span className="pref-label">Default location</span>
+              </div>
+              <input
+                type="text"
+                className="pref-text-input"
+                value={prefs?.defaultLocation ?? DEFAULT_PREFS.defaultLocation}
+                disabled={prefs === null}
+                placeholder="TBD"
+                onChange={(e) => updatePref('defaultLocation', e.target.value)}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -76,16 +76,24 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({ ok: true })
 })
 
+interface ParseDefaults {
+  smartDefaults: boolean
+  defaultDuration: number
+  defaultStartTime: string
+  defaultLocation: string
+}
+
 interface ParseRequestBody {
   text?: string
   now?: string
+  defaults?: ParseDefaults
 }
 
 app.post(
   '/parse',
   verifyAuth,
   async (req: Request<object, ParsedEvent | { error: string }, ParseRequestBody>, res: Response) => {
-    const { text, now } = req.body
+    const { text, now, defaults } = req.body
 
     if (!text || text.trim().length === 0) {
       res.status(400).json({ error: 'text is required' })
@@ -108,7 +116,7 @@ app.post(
 
     try {
       const apiKey = getGeminiApiKey()
-      const event = await parseEventWithAI({ text: text.trim(), nowISO }, apiKey)
+      const event = await parseEventWithAI({ text: text.trim(), nowISO, defaults }, apiKey)
       res.json(event)
     } catch (err) {
       console.error('[/parse] error:', err)

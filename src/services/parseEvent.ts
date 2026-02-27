@@ -8,14 +8,25 @@ export type ParsedEvent = {
   description: string | null
 }
 
-export async function parseEvent(text: string, idToken: string): Promise<ParsedEvent> {
+export type ParseDefaults = {
+  smartDefaults: boolean
+  defaultDuration: number
+  defaultStartTime: string
+  defaultLocation: string
+}
+
+export async function parseEvent(text: string, idToken: string, defaults?: ParseDefaults): Promise<ParsedEvent> {
   const response = await fetch(`${BACKEND_URL}/parse`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${idToken}`,
     },
-    body: JSON.stringify({ text, now: new Date().toISOString() }),
+    body: JSON.stringify({
+      text,
+      now: new Date().toISOString(),
+      defaults,
+    }),
   })
 
   if (!response.ok) {
