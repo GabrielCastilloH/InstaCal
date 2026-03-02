@@ -78,6 +78,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 interface ParseDefaults {
   smartDefaults: boolean
+  tasksAsAllDayEvents: boolean
   defaultDuration: number
   defaultStartTime: string
   defaultLocation: string

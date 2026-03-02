@@ -7,14 +7,25 @@ import PreferencesPage, { PREF_KEY, DEFAULT_PREFS, type Prefs } from "./componen
 import CoffeePage from "./components/CoffeePage";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
-import { parseEvent, type ParsedEvent } from "./services/parseEvent";
+import { parseEvent, isAllDayEvent, type ParsedEvent } from "./services/parseEvent";
 import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
 import "./App.css";
 
 function buildGoogleCalendarUrl(event: ParsedEvent): string {
-  const fmt = (iso: string) => iso.slice(0, 19).replace(/-/g, "").replace(/:/g, "");
-  const dates = `${fmt(event.start)}/${fmt(event.end)}`;
+  const allDay = isAllDayEvent(event)
+  const dates = allDay
+    ? (() => {
+        const startStr = event.start.slice(0, 10).replace(/-/g, '')
+        const d = new Date(event.start.slice(0, 10))
+        d.setDate(d.getDate() + 1)
+        const endStr = d.toISOString().slice(0, 10).replace(/-/g, '')
+        return `${startStr}/${endStr}`
+      })()
+    : (() => {
+        const fmt = (iso: string) => iso.slice(0, 19).replace(/-/g, '').replace(/:/g, '')
+        return `${fmt(event.start)}/${fmt(event.end)}`
+      })()
   const url = new URL("https://calendar.google.com/calendar/r/eventedit");
   url.searchParams.set("text", event.title);
   url.searchParams.set("dates", dates);
@@ -130,6 +141,7 @@ function App() {
       }
       const event = await parseEvent(text, idToken, {
         smartDefaults: prefs.smartDefaults,
+        tasksAsAllDayEvents: prefs.tasksAsAllDayEvents,
         defaultDuration: prefs.defaultDuration,
         defaultStartTime: prefs.defaultStartTime,
         defaultLocation: prefs.defaultLocation,

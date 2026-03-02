@@ -1,18 +1,35 @@
 import type { ParsedEvent } from './parseEvent'
+import { isAllDayEvent } from './parseEvent'
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
 
 export async function createCalendarEvent(token: string, event: ParsedEvent): Promise<unknown> {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const allDay = isAllDayEvent(event)
 
-  const body = {
-    summary: event.title,
-    start: { dateTime: event.start, timeZone },
-    end: { dateTime: event.end, timeZone },
-    ...(event.location != null && { location: event.location }),
-    ...(event.description != null && { description: event.description }),
-    ...(event.recurrence != null && { recurrence: [`RRULE:${event.recurrence}`] }),
-  }
+  const body = allDay
+    ? {
+        summary: event.title,
+        start: { date: event.start.slice(0, 10) },
+        end: {
+          date: (() => {
+            const d = new Date(event.end.slice(0, 10))
+            d.setDate(d.getDate() + 1)
+            return d.toISOString().slice(0, 10)
+          })(),
+        },
+        ...(event.location != null && { location: event.location }),
+        ...(event.description != null && { description: event.description }),
+        ...(event.recurrence != null && { recurrence: [`RRULE:${event.recurrence}`] }),
+      }
+    : {
+        summary: event.title,
+        start: { dateTime: event.start, timeZone },
+        end: { dateTime: event.end, timeZone },
+        ...(event.location != null && { location: event.location }),
+        ...(event.description != null && { description: event.description }),
+        ...(event.recurrence != null && { recurrence: [`RRULE:${event.recurrence}`] }),
+      }
 
   const response = await fetch(CALENDAR_API, {
     method: 'POST',

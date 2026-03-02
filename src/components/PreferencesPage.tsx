@@ -6,6 +6,7 @@ export const PREF_KEY = 'instacal_prefs'
 
 export interface Prefs {
   autoReview: boolean
+  tasksAsAllDayEvents: boolean
   smartDefaults: boolean
   defaultDuration: number
   defaultStartTime: string
@@ -14,6 +15,7 @@ export interface Prefs {
 
 export const DEFAULT_PREFS: Prefs = {
   autoReview: true,
+  tasksAsAllDayEvents: true,
   smartDefaults: true,
   defaultDuration: 60,
   defaultStartTime: '12:00',
@@ -76,6 +78,23 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             aria-label="Toggle auto-add"
             role="switch"
             aria-checked={prefs?.autoReview ?? false}
+            disabled={prefs === null}
+          >
+            <span className="toggle-thumb" />
+          </button>
+        </div>
+
+        <div className="pref-row">
+          <div className="pref-text">
+            <span className="pref-label">Tasks as all-day events</span>
+            <span className="pref-description">Tasks with deadlines are added as all-day events on their due date.</span>
+          </div>
+          <button
+            className={`toggle ${prefs?.tasksAsAllDayEvents ? 'toggle-on' : 'toggle-off'}`}
+            onClick={() => updatePref('tasksAsAllDayEvents', !prefs?.tasksAsAllDayEvents)}
+            aria-label="Toggle tasks as all-day events"
+            role="switch"
+            aria-checked={prefs?.tasksAsAllDayEvents ?? true}
             disabled={prefs === null}
           >
             <span className="toggle-thumb" />
