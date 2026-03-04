@@ -1,14 +1,14 @@
 import { COLORS } from './styles/colors';
+import { PREF_KEY, DEFAULT_DURATION, DEFAULT_START_TIME, DEFAULT_LOCATION, TOKEN_EXPIRY_BUFFER_MS } from './constants';
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
-const PREF_KEY = 'instacal_prefs';
 const DEFAULT_PREFS = {
     autoReview: true,
     tasksAsAllDayEvents: true,
     smartDefaults: true,
-    defaultDuration: 60,
-    defaultStartTime: '12:00',
-    defaultLocation: 'TBD',
+    defaultDuration: DEFAULT_DURATION,
+    defaultStartTime: DEFAULT_START_TIME,
+    defaultLocation: DEFAULT_LOCATION,
 };
 
 // --- Context menu setup ---
@@ -44,7 +44,7 @@ async function getTokens() {
 
     const calendarToken = result.instacal_google_calendar_token;
     const calendarExpiry = result.instacal_google_calendar_token_expiry;
-    if (!calendarToken || (calendarExpiry && Date.now() >= calendarExpiry - 5 * 60 * 1000)) {
+    if (!calendarToken || (calendarExpiry && Date.now() >= calendarExpiry - TOKEN_EXPIRY_BUFFER_MS)) {
         console.error('[InstaCal] Google Calendar token missing or expired');
         return null;
     }
@@ -54,14 +54,13 @@ async function getTokens() {
     const refreshToken = result.instacal_firebase_refresh_token;
     const apiKey = result.instacal_firebase_api_key;
 
-    const firebaseExpired = !firebaseToken || (firebaseExpiry && Date.now() >= firebaseExpiry - 5 * 60 * 1000);
+    const firebaseExpired = !firebaseToken || (firebaseExpiry && Date.now() >= firebaseExpiry - TOKEN_EXPIRY_BUFFER_MS);
 
     if (firebaseExpired) {
         if (!refreshToken || !apiKey) {
             console.error('[InstaCal] Firebase token expired and no refresh token available');
             return null;
         }
-        console.log('[InstaCal] Firebase ID token expired, refreshing...');
         try {
             const resp = await fetch(
                 `https://securetoken.googleapis.com/v1/token?key=${apiKey}`,
@@ -84,7 +83,6 @@ async function getTokens() {
                 instacal_firebase_id_token_expiry: Date.now() + expiresIn * 1000,
                 instacal_firebase_refresh_token: data.refresh_token,
             });
-            console.log('[InstaCal] Firebase token refreshed successfully');
         } catch (err) {
             console.error('[InstaCal] Token refresh error:', err);
             return null;
@@ -212,8 +210,6 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
     const text = info.selectionText.trim();
     if (!text) return;
 
-    console.log('[InstaCal] Context menu clicked, processing:', text);
-
     const tokens = await getTokens();
     if (!tokens) {
         setBadge('!', COLORS.failure);
@@ -225,17 +221,13 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
     const prefs = { ...DEFAULT_PREFS, ...prefsResult[PREF_KEY] };
 
     try {
-        console.log('[InstaCal] Parsing event with autoReview:', prefs.autoReview);
         const event = await parseEvent(text, tokens.firebaseToken, prefs, tokens.backendUrl);
-        console.log('[InstaCal] Parsed:', event);
 
         if (prefs.autoReview) {
             await createCalendarEvent(tokens.calendarToken, event);
-            console.log('[InstaCal] Event added to calendar');
             setBadge('+', COLORS.success);
         } else {
             chrome.tabs.create({ url: buildGoogleCalendarUrl(event) });
-            console.log('[InstaCal] Opened Google Calendar tab');
         }
     } catch (err) {
         console.error('[InstaCal] Error:', err);

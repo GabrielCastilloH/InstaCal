@@ -8,6 +8,8 @@ export type ParsedEvent = {
   description: string | null
   recurrence: string | null
   isTask: boolean
+  attendees?: Array<{ email: string; name: string }>
+  unknownAttendees?: string[]
 }
 
 const SYSTEM_PROMPT_SMART = `You are a calendar parsing assistant.
@@ -125,7 +127,9 @@ function isValidParsedEvent(obj: unknown): obj is ParsedEvent {
     (e.location === null || typeof e.location === 'string') &&
     (e.description === null || typeof e.description === 'string') &&
     (e.recurrence === null || typeof e.recurrence === 'string') &&
-    typeof e.isTask === 'boolean'
+    typeof e.isTask === 'boolean' &&
+    (e.attendees === undefined || Array.isArray(e.attendees)) &&
+    (e.unknownAttendees === undefined || Array.isArray(e.unknownAttendees))
   )
 }
 
@@ -137,8 +141,14 @@ type ParseDefaults = {
   defaultLocation: string
 }
 
+export type PersonContact = {
+  firstName: string
+  lastName: string
+  email: string
+}
+
 export async function parseEventWithAI(
-  input: { text: string; nowISO: string; defaults?: ParseDefaults },
+  input: { text: string; nowISO: string; defaults?: ParseDefaults; people?: PersonContact[] },
   apiKey: string
 ): Promise<ParsedEvent> {
   const genAI = new GoogleGenerativeAI(apiKey)
@@ -169,6 +179,24 @@ export async function parseEventWithAI(
       .replace(/{DEFAULT_START_TIME}/g, d.defaultStartTime)
       .replace(/{DEFAULT_DURATION}/g, String(d.defaultDuration))
       .replace(/{DEFAULT_LOCATION}/g, d.defaultLocation)
+  }
+
+  if (input.people && input.people.length > 0) {
+    const peopleLines = input.people
+      .map((p) => `- ${p.firstName} ${p.lastName}: ${p.email}`)
+      .join('\n')
+    const peopleBlock = `
+Known people (resolve their names to emails when mentioned):
+${peopleLines}
+
+Additional fields to return:
+  "attendees":        array of { "email": string, "name": string } — resolved known people mentioned in the event; empty array if none
+  "unknownAttendees": array of strings — names mentioned in the event NOT found in Known people; empty array if none
+`
+    systemPrompt = systemPrompt.replace(
+      '- Output ONLY the JSON object. Any other text will cause an error.',
+      `${peopleBlock}- Output ONLY the JSON object. Any other text will cause an error.`
+    )
   }
 
   const model = genAI.getGenerativeModel({

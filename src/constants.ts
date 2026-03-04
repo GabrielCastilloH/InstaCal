@@ -1,0 +1,12 @@
+export const MAX_PEOPLE = 10;
+export const PREF_KEY = 'instacal_prefs';
+export const PEOPLE_KEY = 'instacal_people';
+export const DEFAULT_DURATION = 60;
+export const DEFAULT_START_TIME = '12:00';
+export const DEFAULT_LOCATION = 'TBD';
+export const DEFAULT_AVAILABILITY_START = '08:00';
+export const DEFAULT_AVAILABILITY_END = '19:00';
+export const DURATION_MIN = 15;
+export const DURATION_MAX = 480;
+export const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
+export const FIREBASE_TOKEN_EXPIRY_MS = 55 * 60 * 1000;
