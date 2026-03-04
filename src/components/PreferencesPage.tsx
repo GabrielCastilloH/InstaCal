@@ -13,6 +13,7 @@ export interface Prefs {
   defaultLocation: string
   availabilityStart: string
   availabilityEnd: string
+  notifyAttendees: boolean
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -24,6 +25,7 @@ export const DEFAULT_PREFS: Prefs = {
   defaultLocation: 'TBD',
   availabilityStart: '08:00',
   availabilityEnd: '19:00',
+  notifyAttendees: true,
 }
 
 export async function loadPrefs(): Promise<Prefs> {
@@ -99,6 +101,23 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             aria-label="Toggle tasks as all-day events"
             role="switch"
             aria-checked={prefs?.tasksAsAllDayEvents ?? true}
+            disabled={prefs === null}
+          >
+            <span className="toggle-thumb" />
+          </button>
+        </div>
+
+        <div className="pref-row">
+          <div className="pref-text">
+            <span className="pref-label">Notify attendees</span>
+            <span className="pref-description">Send a Google Calendar invite email to people added to events.</span>
+          </div>
+          <button
+            className={`toggle ${prefs?.notifyAttendees ? 'toggle-on' : 'toggle-off'}`}
+            onClick={() => updatePref('notifyAttendees', !prefs?.notifyAttendees)}
+            aria-label="Toggle notify attendees"
+            role="switch"
+            aria-checked={prefs?.notifyAttendees ?? true}
             disabled={prefs === null}
           >
             <span className="toggle-thumb" />

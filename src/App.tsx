@@ -171,7 +171,7 @@ function App() {
 
       if (prefs.autoReview) {
         console.log('[InstaCal] autoReview=true, creating calendar event directly');
-        await createCalendarEvent(calendarToken, event, allAttendees);
+        await createCalendarEvent(calendarToken, event, allAttendees, prefs.notifyAttendees);
         setStatus("success");
       } else {
         const url = buildGoogleCalendarUrl(event, allAttendees);

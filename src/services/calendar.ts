@@ -6,7 +6,8 @@ const CALENDAR_API = 'https://www.googleapis.com/calendar/v3/calendars/primary/e
 export async function createCalendarEvent(
   token: string,
   event: ParsedEvent,
-  attendees?: Array<{ email: string; name: string }>
+  attendees?: Array<{ email: string; name: string }>,
+  notifyAttendees = true
 ): Promise<unknown> {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const allDay = isAllDayEvent(event)
@@ -38,7 +39,10 @@ export async function createCalendarEvent(
         ...(attendeeList.length > 0 && { attendees: attendeeList.map((a) => ({ email: a.email, displayName: a.name })) }),
       }
 
-  const response = await fetch(CALENDAR_API, {
+  const sendUpdates = attendeeList.length > 0 ? (notifyAttendees ? 'all' : 'none') : 'none'
+  const url = `${CALENDAR_API}?sendUpdates=${sendUpdates}`
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
