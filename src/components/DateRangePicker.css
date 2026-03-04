@@ -71,11 +71,13 @@
 .dp-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 1px 0;
+  grid-template-rows: repeat(6, 1fr);
+  height: 156px;
+  flex-shrink: 0;
 }
 
 .dp-cell {
-  height: 26px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;

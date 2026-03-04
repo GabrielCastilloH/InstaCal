@@ -74,7 +74,7 @@ export default function DateRangePicker({ initialStart, initialEnd, onApply, onC
     ...Array(firstDow).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => midnight(new Date(viewYear, viewMonth, i + 1))),
   ]
-  while (cells.length % 7 !== 0) cells.push(null)
+  while (cells.length < 42) cells.push(null) // always 6 rows
 
   const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const dateStr = start.getTime() === end.getTime()
