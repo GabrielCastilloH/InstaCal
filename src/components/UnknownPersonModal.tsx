@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './UnknownPersonModal.css'
+import { MAX_PEOPLE } from '../constants'
 
 interface UnknownPersonModalProps {
   name: string
@@ -15,7 +16,7 @@ export default function UnknownPersonModal({
   onAdd,
 }: UnknownPersonModalProps) {
   const [email, setEmail] = useState('')
-  const isFull = peopleCount >= 10
+  const isFull = peopleCount >= MAX_PEOPLE
   const [saveToDefaults, setSaveToDefaults] = useState(!isFull)
 
   return (

@@ -1,7 +1,6 @@
-const FREEBUSY_API = 'https://www.googleapis.com/calendar/v3/freeBusy'
+import { DEFAULT_AVAILABILITY_START, DEFAULT_AVAILABILITY_END } from '../constants'
 
-const DEFAULT_DAY_START = '08:00'
-const DEFAULT_DAY_END = '19:00'
+const FREEBUSY_API = 'https://www.googleapis.com/calendar/v3/freeBusy'
 
 function parseHHMM(t: string): { h: number; m: number } {
   const [h, m] = t.split(':').map(Number)
@@ -85,8 +84,8 @@ export async function fetchAvailability(
   googleToken: string,
   customStart?: Date,
   customEnd?: Date,
-  dayStartTime = DEFAULT_DAY_START,
-  dayEndTime = DEFAULT_DAY_END,
+  dayStartTime = DEFAULT_AVAILABILITY_START,
+  dayEndTime = DEFAULT_AVAILABILITY_END,
 ): Promise<string> {
   const now = new Date()
 

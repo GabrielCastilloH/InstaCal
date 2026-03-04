@@ -8,6 +8,7 @@ import { defineSecret } from 'firebase-functions/params'
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { parseEventWithAI, ParsedEvent, PersonContact } from './gemini'
+import { MAX_PEOPLE, DAILY_LIMIT } from './constants'
 
 admin.initializeApp()
 
@@ -16,8 +17,6 @@ const geminiSecret = defineSecret('GEMINI_API_KEY')
 const app = express()
 app.use(cors({ origin: true }))
 app.use(express.json())
-
-const DAILY_LIMIT = 5
 
 function getGeminiApiKey(): string {
   return process.env.GEMINI_API_KEY ?? geminiSecret.value()
@@ -102,8 +101,8 @@ app.post(
       return
     }
 
-    if (people !== undefined && (!Array.isArray(people) || people.length > 10)) {
-      res.status(400).json({ error: 'people must be an array of at most 10 entries' })
+    if (people !== undefined && (!Array.isArray(people) || people.length > MAX_PEOPLE)) {
+      res.status(400).json({ error: `people must be an array of at most ${MAX_PEOPLE} entries` })
       return
     }
 

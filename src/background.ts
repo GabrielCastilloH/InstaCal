@@ -1,14 +1,14 @@
 import { COLORS } from './styles/colors';
+import { PREF_KEY, DEFAULT_DURATION, DEFAULT_START_TIME, DEFAULT_LOCATION, TOKEN_EXPIRY_BUFFER_MS } from './constants';
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
-const PREF_KEY = 'instacal_prefs';
 const DEFAULT_PREFS = {
     autoReview: true,
     tasksAsAllDayEvents: true,
     smartDefaults: true,
-    defaultDuration: 60,
-    defaultStartTime: '12:00',
-    defaultLocation: 'TBD',
+    defaultDuration: DEFAULT_DURATION,
+    defaultStartTime: DEFAULT_START_TIME,
+    defaultLocation: DEFAULT_LOCATION,
 };
 
 // --- Context menu setup ---
@@ -44,7 +44,7 @@ async function getTokens() {
 
     const calendarToken = result.instacal_google_calendar_token;
     const calendarExpiry = result.instacal_google_calendar_token_expiry;
-    if (!calendarToken || (calendarExpiry && Date.now() >= calendarExpiry - 5 * 60 * 1000)) {
+    if (!calendarToken || (calendarExpiry && Date.now() >= calendarExpiry - TOKEN_EXPIRY_BUFFER_MS)) {
         console.error('[InstaCal] Google Calendar token missing or expired');
         return null;
     }
@@ -54,7 +54,7 @@ async function getTokens() {
     const refreshToken = result.instacal_firebase_refresh_token;
     const apiKey = result.instacal_firebase_api_key;
 
-    const firebaseExpired = !firebaseToken || (firebaseExpiry && Date.now() >= firebaseExpiry - 5 * 60 * 1000);
+    const firebaseExpired = !firebaseToken || (firebaseExpiry && Date.now() >= firebaseExpiry - TOKEN_EXPIRY_BUFFER_MS);
 
     if (firebaseExpired) {
         if (!refreshToken || !apiKey) {

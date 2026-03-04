@@ -3,9 +3,10 @@ import { signInWithCredential, GoogleAuthProvider, type User } from "firebase/au
 import { auth } from "./lib/firebase";
 import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
-import PreferencesPage, { PREF_KEY, DEFAULT_PREFS, type Prefs } from "./components/PreferencesPage";
+import PreferencesPage, { DEFAULT_PREFS, type Prefs } from "./components/PreferencesPage";
 import CoffeePage from "./components/CoffeePage";
 import PeoplePage, { savePeople, loadPeople, type Person } from "./components/PeoplePage";
+import { MAX_PEOPLE, PREF_KEY, FIREBASE_TOKEN_EXPIRY_MS } from "./constants";
 import UnknownPersonModal from "./components/UnknownPersonModal";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
@@ -89,7 +90,7 @@ function App() {
           const idToken = await result.user.getIdToken();
           chrome.storage.local.set({
             instacal_firebase_id_token: idToken,
-            instacal_firebase_id_token_expiry: Date.now() + 55 * 60 * 1000,
+            instacal_firebase_id_token_expiry: Date.now() + FIREBASE_TOKEN_EXPIRY_MS,
             instacal_firebase_refresh_token: result.user.refreshToken,
             instacal_firebase_api_key: import.meta.env.VITE_FIREBASE_API_KEY as string,
             instacal_backend_url: (import.meta.env.VITE_CLOUD_FUNCTION_URL as string) ?? '',
@@ -263,7 +264,7 @@ function App() {
       };
 
       let updatedPeople = [...people];
-      if (updatedPeople.length >= 10) {
+      if (updatedPeople.length >= MAX_PEOPLE) {
         // LRU eviction: remove person with smallest lastUsed
         const lruIndex = updatedPeople.reduce(
           (minIdx, p, idx) => p.lastUsed < updatedPeople[minIdx].lastUsed ? idx : minIdx,

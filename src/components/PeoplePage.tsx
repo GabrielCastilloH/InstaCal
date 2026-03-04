@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import PageHeader from './PageHeader'
 import './PeoplePage.css'
-
-export const PEOPLE_KEY = 'instacal_people'
+import { MAX_PEOPLE, PEOPLE_KEY } from '../constants'
 
 export interface Person {
   id: string
@@ -79,7 +78,7 @@ export default function PeoplePage({ onBack }: PeoplePageProps) {
   )
 
   const counterChip = (
-    <span className="people-counter">{people.length} / 10</span>
+    <span className="people-counter">{people.length} / {MAX_PEOPLE}</span>
   )
 
   return (
@@ -104,7 +103,7 @@ export default function PeoplePage({ onBack }: PeoplePageProps) {
         ))}
 
         {people.length === 0 && !showForm && (
-          <p className="people-empty">No people yet. Add up to 10 contacts.</p>
+          <p className="people-empty">No people yet. Add up to {MAX_PEOPLE} contacts.</p>
         )}
       </div>
 
@@ -149,7 +148,7 @@ export default function PeoplePage({ onBack }: PeoplePageProps) {
           </div>
         </div>
       ) : (
-        people.length < 10 && (
+        people.length < MAX_PEOPLE && (
           <button className="people-add-btn" onClick={() => setShowForm(true)}>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" />

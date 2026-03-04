@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react'
 import PageHeader from './PageHeader'
 import './PreferencesPage.css'
-
-export const PREF_KEY = 'instacal_prefs'
+import {
+  PREF_KEY,
+  DEFAULT_DURATION,
+  DEFAULT_START_TIME,
+  DEFAULT_LOCATION,
+  DEFAULT_AVAILABILITY_START,
+  DEFAULT_AVAILABILITY_END,
+  DURATION_MIN,
+  DURATION_MAX,
+} from '../constants'
 
 export interface Prefs {
   autoReview: boolean
@@ -20,11 +28,11 @@ export const DEFAULT_PREFS: Prefs = {
   autoReview: true,
   tasksAsAllDayEvents: true,
   smartDefaults: true,
-  defaultDuration: 60,
-  defaultStartTime: '12:00',
-  defaultLocation: 'TBD',
-  availabilityStart: '08:00',
-  availabilityEnd: '19:00',
+  defaultDuration: DEFAULT_DURATION,
+  defaultStartTime: DEFAULT_START_TIME,
+  defaultLocation: DEFAULT_LOCATION,
+  availabilityStart: DEFAULT_AVAILABILITY_START,
+  availabilityEnd: DEFAULT_AVAILABILITY_END,
   notifyAttendees: true,
 }
 
@@ -47,10 +55,14 @@ interface PreferencesPageProps {
 }
 
 export default function PreferencesPage({ onBack }: PreferencesPageProps) {
-  const [prefs, setPrefs] = useState<Prefs | null>(null)
+  const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    loadPrefs().then(setPrefs)
+    loadPrefs().then((p) => {
+      setPrefs(p)
+      setLoaded(true)
+    })
   }, [])
 
   async function updatePref<K extends keyof Prefs>(key: K, value: Prefs[K]) {
@@ -84,7 +96,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             aria-label="Toggle auto-add"
             role="switch"
             aria-checked={prefs?.autoReview ?? false}
-            disabled={prefs === null}
+            disabled={!loaded}
           >
             <span className="toggle-thumb" />
           </button>
@@ -101,7 +113,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             aria-label="Toggle tasks as all-day events"
             role="switch"
             aria-checked={prefs?.tasksAsAllDayEvents ?? true}
-            disabled={prefs === null}
+            disabled={!loaded}
           >
             <span className="toggle-thumb" />
           </button>
@@ -118,7 +130,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             aria-label="Toggle notify attendees"
             role="switch"
             aria-checked={prefs?.notifyAttendees ?? true}
-            disabled={prefs === null}
+            disabled={!loaded}
           >
             <span className="toggle-thumb" />
           </button>
@@ -135,7 +147,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             aria-label="Toggle smart defaults"
             role="switch"
             aria-checked={prefs?.smartDefaults ?? true}
-            disabled={prefs === null}
+            disabled={!loaded}
           >
             <span className="toggle-thumb" />
           </button>
@@ -151,14 +163,14 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
                 <input
                   type="number"
                   className="pref-number-input"
-                  min={15}
-                  max={480}
+                  min={DURATION_MIN}
+                  max={DURATION_MAX}
                   step={15}
                   value={prefs?.defaultDuration ?? DEFAULT_PREFS.defaultDuration}
-                  disabled={prefs === null}
+                  disabled={!loaded}
                   onChange={(e) => {
                     const v = parseInt(e.target.value, 10)
-                    if (!isNaN(v) && v >= 15 && v <= 480) updatePref('defaultDuration', v)
+                    if (!isNaN(v) && v >= DURATION_MIN && v <= DURATION_MAX) updatePref('defaultDuration', v)
                   }}
                 />
                 <span className="pref-input-suffix">min</span>
@@ -173,7 +185,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
                 type="time"
                 className="pref-time-input"
                 value={prefs?.defaultStartTime ?? DEFAULT_PREFS.defaultStartTime}
-                disabled={prefs === null}
+                disabled={!loaded}
                 onChange={(e) => updatePref('defaultStartTime', e.target.value)}
               />
             </div>
@@ -186,7 +198,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
                 type="text"
                 className="pref-text-input"
                 value={prefs?.defaultLocation ?? DEFAULT_PREFS.defaultLocation}
-                disabled={prefs === null}
+                disabled={!loaded}
                 placeholder="TBD"
                 onChange={(e) => updatePref('defaultLocation', e.target.value)}
               />
@@ -204,7 +216,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
               type="time"
               className="pref-time-input"
               value={prefs?.availabilityStart ?? DEFAULT_PREFS.availabilityStart}
-              disabled={prefs === null}
+              disabled={!loaded}
               onChange={(e) => updatePref('availabilityStart', e.target.value)}
             />
           </div>
@@ -216,7 +228,7 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
               type="time"
               className="pref-time-input"
               value={prefs?.availabilityEnd ?? DEFAULT_PREFS.availabilityEnd}
-              disabled={prefs === null}
+              disabled={!loaded}
               onChange={(e) => updatePref('availabilityEnd', e.target.value)}
             />
           </div>
