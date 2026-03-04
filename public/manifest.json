@@ -16,8 +16,16 @@
       "48": "icons/logo-48.png"
     }
   },
-  "permissions": ["storage", "identity", "tabs", "contextMenus"],
+  "permissions": ["storage", "identity", "tabs", "contextMenus", "scripting"],
+  "content_scripts": [
+    {
+      "matches": ["https://calendar.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "host_permissions": [
+    "https://calendar.google.com/*",
     "https://www.googleapis.com/*",
     "https://us-central1-instacal-app.cloudfunctions.net/*",
     "https://instacal-app.firebaseapp.com/*",

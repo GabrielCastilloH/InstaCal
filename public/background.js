@@ -18,8 +18,23 @@ const DEFAULT_PREFS = {
     defaultLocation: 'TBD',
 };
 
+function injectContentScriptIntoGCalTabs() {
+    chrome.tabs.query({ url: 'https://calendar.google.com/*' }, (tabs) => {
+        console.log('[InstaCal background] found', tabs.length, 'open GCal tab(s), injecting content script');
+        for (const tab of tabs) {
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                files: ['content.js'],
+            }).catch((err) => {
+                console.warn('[InstaCal background] scripting inject failed for tab', tab.id, err);
+            });
+        }
+    });
+}
+
 chrome.runtime.onInstalled.addListener(() => {
     console.log('InstaCal installed!');
+    injectContentScriptIntoGCalTabs();
     chrome.contextMenus.create({
         id: 'add-to-instacal',
         title: 'Add to InstaCal',
@@ -100,6 +115,16 @@ async function refreshFirebaseToken(refreshToken, firebaseApiKey) {
         expiresIn: parseInt(data.expires_in, 10),
     };
 }
+
+chrome.runtime.onStartup.addListener(() => {
+    injectContentScriptIntoGCalTabs();
+});
+
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.action === 'openEditWithAI') {
+        openPopupWithText(message.text || '');
+    }
+});
 
 chrome.contextMenus.onClicked.addListener(async (info) => {
     if (info.menuItemId !== 'add-to-instacal' || !info.selectionText) return;

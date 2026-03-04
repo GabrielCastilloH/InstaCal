@@ -69,6 +69,17 @@ function App() {
           if (!cancelled) {
             setUser(result.user);
             setAuthLoading(false);
+            // Pre-fill textarea if opened via "Edit with AI" from Google Calendar
+            const stored = await new Promise<{ [key: string]: unknown }>((resolve) =>
+              chrome.storage.local.get(['instacal_context_text'], (items) => resolve(items))
+            );
+            const contextText = stored['instacal_context_text'] as string | undefined;
+            if (contextText && inputRef.current) {
+              inputRef.current.value = contextText;
+              chrome.storage.local.remove('instacal_context_text');
+              inputRef.current.focus();
+              inputRef.current.selectionStart = inputRef.current.selectionEnd = contextText.length;
+            }
           }
           return;
         } catch {
