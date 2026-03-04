@@ -22,6 +22,7 @@ function buildGoogleCalendarUrl(event: ParsedEvent): string {
   url.searchParams.set("dates", dates);
   if (event.location) url.searchParams.set("location", event.location);
   if (event.description) url.searchParams.set("details", event.description);
+  if (event.recurrence) url.searchParams.set("recur", `RRULE:${event.recurrence}`);
   return url.toString();
 }
 
@@ -82,7 +83,22 @@ function App() {
     }
 
     init();
-    return () => { cancelled = true; };
+
+    // Re-run auth when the token is written by the auth tab after sign-in
+    function onStorageChanged(
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string,
+    ) {
+      if (area === "local" && changes["instacal_google_calendar_token"]?.newValue) {
+        init();
+      }
+    }
+    chrome.storage.onChanged.addListener(onStorageChanged);
+
+    return () => {
+      cancelled = true;
+      chrome.storage.onChanged.removeListener(onStorageChanged);
+    };
   }, []);
 
   function loadPrefsIntoState() {

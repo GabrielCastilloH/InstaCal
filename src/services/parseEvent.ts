@@ -6,6 +6,7 @@ export type ParsedEvent = {
   end: string
   location: string | null
   description: string | null
+  recurrence: string | null
 }
 
 export type ParseDefaults = {
