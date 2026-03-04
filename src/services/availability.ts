@@ -1,7 +1,12 @@
 const FREEBUSY_API = 'https://www.googleapis.com/calendar/v3/freeBusy'
 
-const DAY_START_HOUR = 8   // 8:00 AM
-const DAY_END_HOUR = 19    // 7:00 PM
+const DEFAULT_DAY_START = '08:00'
+const DEFAULT_DAY_END = '19:00'
+
+function parseHHMM(t: string): { h: number; m: number } {
+  const [h, m] = t.split(':').map(Number)
+  return { h: h ?? 8, m: m ?? 0 }
+}
 
 const MIN_SLOT_MINUTES = 30
 
@@ -79,6 +84,8 @@ export async function fetchAvailability(
   googleToken: string,
   customStart?: Date,
   customEnd?: Date,
+  dayStartTime = DEFAULT_DAY_START,
+  dayEndTime = DEFAULT_DAY_END,
 ): Promise<string> {
   const now = new Date()
 
@@ -124,11 +131,13 @@ export async function fetchAvailability(
     const day = new Date(timeMin)
     day.setDate(day.getDate() + i)
 
+    const { h: sh, m: sm } = parseHHMM(dayStartTime)
     const dayStart = new Date(day)
-    dayStart.setHours(DAY_START_HOUR, 0, 0, 0)
+    dayStart.setHours(sh, sm, 0, 0)
 
+    const { h: eh, m: em } = parseHHMM(dayEndTime)
     const dayEnd = new Date(day)
-    dayEnd.setHours(DAY_END_HOUR, 0, 0, 0)
+    dayEnd.setHours(eh, em, 0, 0)
 
     const windowStart = i === 0 && now > dayStart ? roundUpTo15(now) : dayStart
     if (windowStart >= dayEnd) continue

@@ -10,6 +10,8 @@ export interface Prefs {
   defaultDuration: number
   defaultStartTime: string
   defaultLocation: string
+  availabilityStart: string
+  availabilityEnd: string
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -18,6 +20,8 @@ export const DEFAULT_PREFS: Prefs = {
   defaultDuration: 60,
   defaultStartTime: '12:00',
   defaultLocation: 'TBD',
+  availabilityStart: '08:00',
+  availabilityEnd: '19:00',
 }
 
 export async function loadPrefs(): Promise<Prefs> {
@@ -151,6 +155,34 @@ export default function PreferencesPage({ onBack }: PreferencesPageProps) {
             </div>
           </div>
         )}
+
+        <span className="pref-section-label">Availability</span>
+        <div className="pref-defaults-box">
+          <div className="pref-row">
+            <div className="pref-text">
+              <span className="pref-label">Day start</span>
+            </div>
+            <input
+              type="time"
+              className="pref-time-input"
+              value={prefs?.availabilityStart ?? DEFAULT_PREFS.availabilityStart}
+              disabled={prefs === null}
+              onChange={(e) => updatePref('availabilityStart', e.target.value)}
+            />
+          </div>
+          <div className="pref-row">
+            <div className="pref-text">
+              <span className="pref-label">Day end</span>
+            </div>
+            <input
+              type="time"
+              className="pref-time-input"
+              value={prefs?.availabilityEnd ?? DEFAULT_PREFS.availabilityEnd}
+              disabled={prefs === null}
+              onChange={(e) => updatePref('availabilityEnd', e.target.value)}
+            />
+          </div>
+        </div>
       </div>
     </div>
   )

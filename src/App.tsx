@@ -140,7 +140,7 @@ function App() {
     try {
       const calendarToken = await getGoogleCalendarToken();
       if (!calendarToken) throw new Error("Not authenticated");
-      const text = await fetchAvailability(calendarToken, start, end);
+      const text = await fetchAvailability(calendarToken, start, end, prefs.availabilityStart, prefs.availabilityEnd);
       await navigator.clipboard.writeText(text);
       setCopyStatus("copied");
       setTimeout(() => setCopyStatus("idle"), 2000);
