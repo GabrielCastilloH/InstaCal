@@ -1,10 +1,36 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'copy-colors-css',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'colors.css',
+          source: readFileSync('src/styles/colors.css', 'utf-8'),
+        })
+      },
+    },
+  ],
   base: './',
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        background: resolve(__dirname, 'src/background.ts'),
+      },
+      output: {
+        entryFileNames: (chunk) =>
+          chunk.name === 'background' ? '[name].js' : 'assets/[name]-[hash].js',
+      },
+    },
+  },
   server: {
     headers: {
       'Content-Security-Policy': [

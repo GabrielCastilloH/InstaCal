@@ -23,8 +23,8 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // --- Storage helper ---
 
-function getFromStorage(keys) {
-    return new Promise((resolve) => chrome.storage.local.get(keys, resolve));
+function getFromStorage(keys: string | string[]): Promise<Record<string, any>> {
+    return new Promise((resolve) => chrome.storage.local.get(keys, (items) => resolve(items)));
 }
 
 // --- Auth helpers ---
@@ -98,7 +98,7 @@ async function getTokens() {
 
 // --- Event helpers ---
 
-async function parseEvent(text, idToken, prefs, backendUrl) {
+async function parseEvent(text: string, idToken: string, prefs: Record<string, any>, backendUrl: string) {
     const response = await fetch(`${backendUrl}/parse`, {
         method: 'POST',
         headers: {
@@ -128,7 +128,7 @@ async function parseEvent(text, idToken, prefs, backendUrl) {
     return response.json();
 }
 
-function isAllDayEvent(event) {
+function isAllDayEvent(event: Record<string, any>): boolean {
     return (
         event.start.slice(0, 10) === event.end.slice(0, 10) &&
         event.start.slice(11, 19) === '00:00:00' &&
@@ -136,7 +136,7 @@ function isAllDayEvent(event) {
     );
 }
 
-async function createCalendarEvent(token, event) {
+async function createCalendarEvent(token: string, event: Record<string, any>) {
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const allDay = isAllDayEvent(event);
     const body = allDay
@@ -175,7 +175,7 @@ async function createCalendarEvent(token, event) {
     return response.json();
 }
 
-function buildGoogleCalendarUrl(event) {
+function buildGoogleCalendarUrl(event: Record<string, any>): string {
     const allDay = isAllDayEvent(event);
     let dates;
     if (allDay) {
@@ -184,7 +184,7 @@ function buildGoogleCalendarUrl(event) {
         d.setDate(d.getDate() + 1);
         dates = `${startStr}/${d.toISOString().slice(0, 10).replace(/-/g, '')}`;
     } else {
-        const fmt = (iso) => iso.slice(0, 19).replace(/-/g, '').replace(/:/g, '');
+        const fmt = (iso: string) => iso.slice(0, 19).replace(/-/g, '').replace(/:/g, '');
         dates = `${fmt(event.start)}/${fmt(event.end)}`;
     }
     const url = new URL('https://calendar.google.com/calendar/r/eventedit');
@@ -198,7 +198,7 @@ function buildGoogleCalendarUrl(event) {
 
 // --- Badge feedback ---
 
-function setBadge(text, color) {
+function setBadge(text: string, color: string): void {
     chrome.action.setBadgeText({ text });
     chrome.action.setBadgeBackgroundColor({ color });
 }
@@ -234,6 +234,6 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
     } catch (err) {
         console.error('[InstaCal] Error:', err);
         setBadge('!', '#ef4444');
-        chrome.storage.local.set({ instacal_badge_error: err.message });
+        chrome.storage.local.set({ instacal_badge_error: err instanceof Error ? err.message : String(err) });
     }
 });
