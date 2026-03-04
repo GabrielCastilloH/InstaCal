@@ -10,6 +10,8 @@ import SignIn from "./components/SignIn";
 import { parseEvent, type ParsedEvent } from "./services/parseEvent";
 import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
+import { fetchAvailability } from "./services/availability";
+import DateRangePicker from "./components/DateRangePicker";
 import "./App.css";
 
 function buildGoogleCalendarUrl(event: ParsedEvent): string {
@@ -36,17 +38,34 @@ function App() {
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [copyStatus, setCopyStatus] = useState<"idle" | "loading" | "copied" | "error">("idle");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [availStart, setAvailStart] = useState<Date>(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+  });
+  const [availEnd, setAvailEnd] = useState<Date>(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 6); return d;
+  });
 
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
+      // Store config values so background.js can silently refresh tokens without opening the popup
+      chrome.storage.local.set({
+        'instacal_google_client_id': import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string,
+        'instacal_firebase_api_key': import.meta.env.VITE_FIREBASE_API_KEY as string,
+      });
+
       // Check for a stored Google token and re-authenticate
       const googleToken = await getGoogleCalendarToken();
       if (googleToken) {
         try {
           const credential = GoogleAuthProvider.credential(null, googleToken);
           const result = await signInWithCredential(auth, credential);
+          // Cache Firebase ID token + refresh token immediately so background.js
+          // can process context-menu events without ever opening the popup
+          await getFirebaseIdToken();
           if (!cancelled) {
             setUser(result.user);
             setAuthLoading(false);
@@ -131,6 +150,29 @@ function App() {
     }
   }
 
+  async function handleExportAvailability(start: Date, end: Date) {
+    setShowDatePicker(false);
+    setCopyStatus("loading");
+    try {
+      const calendarToken = await getGoogleCalendarToken();
+      if (!calendarToken) throw new Error("Not authenticated");
+      const text = await fetchAvailability(calendarToken, start, end, prefs.availabilityStart, prefs.availabilityEnd);
+      await navigator.clipboard.writeText(text);
+      setCopyStatus("copied");
+      setTimeout(() => setCopyStatus("idle"), 2000);
+    } catch (err) {
+      console.error('InstaCal availability error:', err);
+      setCopyStatus("error");
+      setTimeout(() => setCopyStatus("idle"), 3000);
+    }
+  }
+
+  function handleDatePickerApply(start: Date, end: Date) {
+    setAvailStart(start);
+    setAvailEnd(end);
+    handleExportAvailability(start, end);
+  }
+
   if (!authLoading && !user) {
     return <SignIn />;
   }
@@ -186,36 +228,68 @@ function App() {
         placeholder="Dinner with Gabe this Monday at 6"
         readOnly={authLoading}
       />
-      <button
-        className="add-event-btn"
-        disabled={status === "loading" || authLoading}
-        onClick={handleAddEvent}
-      >
-        {status === "loading" ? "Parsing…" : "Add Event"}
-      </button>
+      <div className="btn-row">
+        <button
+          className="add-event-btn"
+          disabled={status === "loading" || authLoading}
+          onClick={handleAddEvent}
+        >
+          {status === "loading" ? "Parsing…" : "Add Event"}
+        </button>
+        <button
+          className="export-btn"
+          disabled={authLoading}
+          onClick={() => setShowDatePicker(true)}
+          aria-label="Export availability"
+          title="Export your availability"
+        >
+          {copyStatus === "copied" ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          )}
+        </button>
+      </div>
 
-      {status === "success" && (
+      {copyStatus === "copied" && (
         <p className="status-msg status-success">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Availability copied!
+        </p>
+      )}
+      {copyStatus === "error" && (
+        <p className="status-msg status-error">Couldn't fetch availability.</p>
+      )}
+      {copyStatus === "idle" && status === "success" && (
+        <p className="status-msg status-success">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
           Added to Calendar
         </p>
       )}
-      {status === "error" && (
+      {copyStatus === "idle" && status === "error" && (
         <p className="status-msg status-error">
           {errorMessage ?? "Something went wrong."}
         </p>
+      )}
+
+      {showDatePicker && (
+        <DateRangePicker
+          initialStart={availStart}
+          initialEnd={availEnd}
+          onApply={handleDatePickerApply}
+          onCancel={() => setShowDatePicker(false)}
+        />
       )}
     </div>
   );

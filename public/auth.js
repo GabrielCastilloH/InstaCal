@@ -15,6 +15,7 @@
       'email',
       'profile',
       'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/calendar.freebusy',
     ];
 
     const authUrl = new URL('https://accounts.google.com/o/oauth2/auth');

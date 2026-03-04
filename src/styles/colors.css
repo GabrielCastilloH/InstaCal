@@ -8,6 +8,7 @@
   --color-primary-900: #2b4257;
 
   /* Semantic aliases */
+  --color-bg-page: #FCFDFE;
   --color-bg-subtle: var(--color-primary-100);
   --color-text-primary: var(--color-primary-900);
   --color-text-secondary: var(--color-primary-700);

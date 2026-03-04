@@ -41,6 +41,24 @@ export default function HelpContentPage({ onBack }: HelpContentPageProps) {
           <li>meet w/ yaelin tmw, 4, olin lib</li>
         </ul>
       </div>
+
+      <div className="help-divider" />
+
+      <div className="help-section">
+        <p className="help-feature-label">Export Availability</p>
+        <div className="help-step">
+          <span className="step-num">1</span>
+          <span className="step-text">Tap the <strong>calendar icon</strong> next to Add Event.</span>
+        </div>
+        <div className="help-step">
+          <span className="step-num">2</span>
+          <span className="step-text">Pick a date range to check.</span>
+        </div>
+        <div className="help-step">
+          <span className="step-num">3</span>
+          <span className="step-text">Your free slots are copied to your clipboard — ready to paste anywhere.</span>
+        </div>
+      </div>
     </div>
   )
 }

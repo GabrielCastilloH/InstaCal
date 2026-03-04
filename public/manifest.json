@@ -16,12 +16,13 @@
       "48": "icons/logo-48.png"
     }
   },
-  "permissions": ["storage", "identity", "tabs"],
+  "permissions": ["storage", "identity", "tabs", "contextMenus"],
   "host_permissions": [
     "https://www.googleapis.com/*",
     "https://us-central1-instacal-app.cloudfunctions.net/*",
     "https://instacal-app.firebaseapp.com/*",
     "https://*.firebaseapp.com/*",
+    "https://identitytoolkit.googleapis.com/*",
     "https://securetoken.googleapis.com/*",
     "https://www.gstatic.com/*",
     "https://apis.google.com/*",
