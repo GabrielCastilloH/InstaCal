@@ -3,36 +3,54 @@ import { signInWithCredential, GoogleAuthProvider, type User } from "firebase/au
 import { auth } from "./lib/firebase";
 import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
-import PreferencesPage, { PREF_KEY, DEFAULT_PREFS, type Prefs } from "./components/PreferencesPage";
+import PreferencesPage, { DEFAULT_PREFS, type Prefs } from "./components/PreferencesPage";
 import CoffeePage from "./components/CoffeePage";
+import PeoplePage, { savePeople, loadPeople, type Person } from "./components/PeoplePage";
+import { MAX_PEOPLE, PREF_KEY, FIREBASE_TOKEN_EXPIRY_MS } from "./constants";
+import UnknownPersonModal from "./components/UnknownPersonModal";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
-import { parseEvent, type ParsedEvent } from "./services/parseEvent";
+import { parseEvent, isAllDayEvent, type ParsedEvent } from "./services/parseEvent";
 import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent, patchCalendarEvent } from "./services/calendar";
 import { fetchAvailability } from "./services/availability";
 import DateRangePicker from "./components/DateRangePicker";
 import "./App.css";
 
-function buildGoogleCalendarUrl(event: ParsedEvent): string {
-  const fmt = (iso: string) => iso.slice(0, 19).replace(/-/g, "").replace(/:/g, "");
-  const dates = `${fmt(event.start)}/${fmt(event.end)}`;
+function buildGoogleCalendarUrl(event: ParsedEvent, attendees: Array<{ email: string; name: string }>): string {
+  const allDay = isAllDayEvent(event)
+  const dates = allDay
+    ? (() => {
+        const startStr = event.start.slice(0, 10).replace(/-/g, '')
+        const d = new Date(event.start.slice(0, 10))
+        d.setDate(d.getDate() + 1)
+        const endStr = d.toISOString().slice(0, 10).replace(/-/g, '')
+        return `${startStr}/${endStr}`
+      })()
+    : (() => {
+        const fmt = (iso: string) => iso.slice(0, 19).replace(/-/g, '').replace(/:/g, '')
+        return `${fmt(event.start)}/${fmt(event.end)}`
+      })()
   const url = new URL("https://calendar.google.com/calendar/r/eventedit");
   url.searchParams.set("text", event.title);
   url.searchParams.set("dates", dates);
   if (event.location) url.searchParams.set("location", event.location);
   if (event.description) url.searchParams.set("details", event.description);
   if (event.recurrence) url.searchParams.set("recur", `RRULE:${event.recurrence}`);
+  for (const a of attendees) {
+    url.searchParams.append("add", a.email);
+  }
   return url.toString();
 }
 
-type SettingsPageType = "settings" | "help" | "preferences" | "coffee";
+type SettingsPageType = "settings" | "help" | "preferences" | "people" | "coffee";
 
 function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
+  const [people, setPeople] = useState<Person[]>([]);
   const [settingsPage, setSettingsPage] = useState<SettingsPageType | null>(null);
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
@@ -47,6 +65,11 @@ function App() {
   const [availEnd, setAvailEnd] = useState<Date>(() => {
     const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 6); return d;
   });
+
+  // Unknown person resolution queue
+  const [pendingEvent, setPendingEvent] = useState<ParsedEvent | null>(null);
+  const [unknownQueue, setUnknownQueue] = useState<string[]>([]);
+  const [resolvedAttendees, setResolvedAttendees] = useState<Array<{ email: string; name: string }>>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,9 +87,15 @@ function App() {
         try {
           const credential = GoogleAuthProvider.credential(null, googleToken);
           const result = await signInWithCredential(auth, credential);
-          // Cache Firebase ID token + refresh token immediately so background.js
-          // can process context-menu events without ever opening the popup
-          await getFirebaseIdToken();
+          // Cache tokens for background service worker
+          const idToken = await result.user.getIdToken();
+          chrome.storage.local.set({
+            instacal_firebase_id_token: idToken,
+            instacal_firebase_id_token_expiry: Date.now() + FIREBASE_TOKEN_EXPIRY_MS,
+            instacal_firebase_refresh_token: result.user.refreshToken,
+            instacal_firebase_api_key: import.meta.env.VITE_FIREBASE_API_KEY as string,
+            instacal_backend_url: (import.meta.env.VITE_CLOUD_FUNCTION_URL as string) ?? '',
+          });
           if (!cancelled) {
             setUser(result.user);
             setAuthLoading(false);
@@ -122,15 +151,56 @@ function App() {
     });
   }
 
-  useEffect(() => { loadPrefsIntoState(); }, []);
+  function loadPeopleIntoState() {
+    loadPeople().then(setPeople);
+  }
 
-  // Re-load prefs when returning from settings so changes apply immediately
+  useEffect(() => { loadPrefsIntoState(); }, []);
+  useEffect(() => { loadPeopleIntoState(); }, []);
+
+  // Clear badge and show any pending error from background context-menu flow
+  useEffect(() => {
+    chrome.action.setBadgeText({ text: '' });
+    chrome.storage.local.get(['instacal_badge_error'], (result) => {
+      if (result.instacal_badge_error) {
+        setStatus('error');
+        setErrorMessage(String(result.instacal_badge_error));
+        chrome.storage.local.remove('instacal_badge_error');
+      }
+    });
+  }, []);
+
+  // Re-load prefs and people when returning from settings so changes apply immediately
   useEffect(() => {
     if (!settingsPage) {
       inputRef.current?.focus();
       loadPrefsIntoState();
+      loadPeopleIntoState();
     }
   }, [settingsPage]);
+
+  async function finishAddEvent(event: ParsedEvent, allAttendees: Array<{ email: string; name: string }>) {
+    try {
+      const calendarToken = await getGoogleCalendarToken();
+      if (!calendarToken) throw new Error("Not authenticated");
+
+      if (prefs.autoReview) {
+        await createCalendarEvent(calendarToken, event, allAttendees, prefs.notifyAttendees);
+        setStatus("success");
+      } else {
+        const url = buildGoogleCalendarUrl(event, allAttendees);
+        chrome.tabs.create({ url });
+      }
+    } catch (err) {
+      console.error('[InstaCal] finishAddEvent error:', err);
+      setStatus("error");
+      setErrorMessage((err as Error).message);
+    }
+
+    setPendingEvent(null);
+    setUnknownQueue([]);
+    setResolvedAttendees([]);
+  }
 
   async function handleAddEvent() {
     const text = inputRef.current?.value.trim() ?? "";
@@ -145,25 +215,92 @@ function App() {
       if (!idToken || !calendarToken) {
         throw new Error("Not authenticated");
       }
+
+      const peopleContacts = people.map((p) => ({
+        firstName: p.firstName,
+        lastName: p.lastName,
+        email: p.email,
+      }));
+
       const event = await parseEvent(text, idToken, {
         smartDefaults: prefs.smartDefaults,
+        tasksAsAllDayEvents: prefs.tasksAsAllDayEvents,
         defaultDuration: prefs.defaultDuration,
         defaultStartTime: prefs.defaultStartTime,
         defaultLocation: prefs.defaultLocation,
-      });
+      }, peopleContacts);
 
-      if (editContext) {
+      if (event.unknownAttendees && event.unknownAttendees.length > 0) {
+        // Kick off interactive resolution queue
+        setPendingEvent(event);
+        setUnknownQueue([...event.unknownAttendees]);
+        setResolvedAttendees([...(event.attendees ?? [])]);
+        setStatus("idle");
+      } else if (editContext) {
         await patchCalendarEvent(calendarToken, editContext.calendarId, editContext.eventId, event);
         setStatus("success");
-      } else if (prefs.autoReview) {
-        await createCalendarEvent(calendarToken, event);
-        setStatus("success");
       } else {
-        chrome.tabs.create({ url: buildGoogleCalendarUrl(event) });
+        await finishAddEvent(event, event.attendees ?? []);
       }
     } catch (err) {
+      console.error('[InstaCal] handleAddEvent error:', err);
       setStatus("error");
       setErrorMessage((err as Error).message);
+    }
+  }
+
+  function handleModalIgnore() {
+    const newQueue = unknownQueue.slice(1);
+    setUnknownQueue(newQueue);
+    if (newQueue.length === 0 && pendingEvent) {
+      void finishAddEvent(pendingEvent, resolvedAttendees);
+    }
+  }
+
+  async function handleModalAdd(email: string, saveToDefaults: boolean) {
+    const name = unknownQueue[0];
+
+    const newResolved = [...resolvedAttendees, { email, name }];
+    setResolvedAttendees(newResolved);
+
+    if (saveToDefaults) {
+      const [firstName, ...rest] = name.split(' ');
+      const lastName = rest.join(' ');
+      const newPerson: Person = {
+        id: crypto.randomUUID(),
+        firstName: firstName ?? name,
+        lastName,
+        email,
+        lastUsed: Date.now(),
+      };
+
+      let updatedPeople = [...people];
+      if (updatedPeople.length >= MAX_PEOPLE) {
+        const lruIndex = updatedPeople.reduce(
+          (minIdx, p, idx) => p.lastUsed < updatedPeople[minIdx].lastUsed ? idx :           minIdx,
+          0
+        );
+        updatedPeople.splice(lruIndex, 1);
+      }
+      updatedPeople.push(newPerson);
+      setPeople(updatedPeople);
+      await savePeople(updatedPeople);
+    }
+
+    // Update lastUsed for any existing person with this email
+    const existingIdx = people.findIndex((p) => p.email === email);
+    if (existingIdx !== -1) {
+      const updatedPeople = people.map((p, i) =>
+        i === existingIdx ? { ...p, lastUsed: Date.now() } : p
+      );
+      setPeople(updatedPeople);
+      await savePeople(updatedPeople);
+    }
+
+    const newQueue = unknownQueue.slice(1);
+    setUnknownQueue(newQueue);
+    if (newQueue.length === 0 && pendingEvent) {
+      void finishAddEvent(pendingEvent, newResolved);
     }
   }
 
@@ -199,6 +336,7 @@ function App() {
       <SettingsPage
         onBack={() => setSettingsPage(null)}
         onNavigate={(page) => setSettingsPage(page)}
+        onSignOut={() => { setUser(null); setSettingsPage(null); }}
       />
     );
   }
@@ -207,6 +345,9 @@ function App() {
   }
   if (user && settingsPage === "preferences") {
     return <PreferencesPage onBack={() => setSettingsPage("settings")} />;
+  }
+  if (user && settingsPage === "people") {
+    return <PeoplePage onBack={() => setSettingsPage("settings")} />;
   }
   if (user && settingsPage === "coffee") {
     return <CoffeePage onBack={() => setSettingsPage("settings")} />;
@@ -244,6 +385,12 @@ function App() {
         className={`event-input ${authLoading ? "event-input-loading" : ""}`}
         placeholder="Dinner with Gabe this Monday at 6"
         readOnly={authLoading}
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            e.preventDefault();
+            handleAddEvent();
+          }
+        }}
       />
       <div className="btn-row">
         <button
@@ -308,6 +455,15 @@ function App() {
           initialEnd={availEnd}
           onApply={handleDatePickerApply}
           onCancel={() => setShowDatePicker(false)}
+        />
+      )}
+
+      {unknownQueue.length > 0 && (
+        <UnknownPersonModal
+          name={unknownQueue[0]}
+          peopleCount={people.length}
+          onIgnore={handleModalIgnore}
+          onAdd={handleModalAdd}
         />
       )}
     </div>

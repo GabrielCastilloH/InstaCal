@@ -1,4 +1,3 @@
-@import '../styles/colors.css';
 
 .preferences-container {
   position: relative;
@@ -238,8 +237,8 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background-color: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  background-color: var(--color-white);
+  box-shadow: var(--shadow-thumb);
   transition: left 0.2s ease;
   pointer-events: none;
 }

@@ -22,16 +22,14 @@ Simply type something like **"Lunch with Sarah tomorrow at noon"** and InstaCal 
 ## Future Enhancements
 
 - Add stars and decoration to the sign in page
-- Ability to invite people to an event
-- Ability to export availability
 - Add an event under a specific calendar
 - Edit with AI button in the edit calendar view
-- Highlight text to event
+  – Add multiple events at a time
 
 ## Setup
 
-- **Gemini API**: See [GEMINI_SETUP.md](GEMINI_SETUP.md) for API key setup and deployment
-- **Firebase**: See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for Firebase configuration (if available)
+- **Gemini API**: Add your API key to `functions/.env.local` (see `functions/.env.example`)
+- **Firebase**: Configure via `firebase.json` and `.firebaserc`
 
 ## Contributing
 

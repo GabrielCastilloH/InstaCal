@@ -7,19 +7,34 @@ export type ParsedEvent = {
   location: string | null
   description: string | null
   recurrence: string | null
+  isTask: boolean
+  attendees?: Array<{ email: string; name: string }>
+  unknownAttendees?: string[]
 }
 
 const SYSTEM_PROMPT_SMART = `You are a calendar parsing assistant.
-The user will describe a calendar event in natural language.
+The user will describe a calendar event or task in natural language.
 The current date and time is: {NOW_ISO}
 
-Extract the event and return ONLY a valid JSON object — no markdown, no explanation — with exactly these fields:
+Extract the event/task and return ONLY a valid JSON object — no markdown, no explanation — with exactly these fields:
   "title":       string   — short event title, properly capitalized and grammatically clean (e.g. "Dinner with Gabe", not "dinner w/gabe")
   "start":       string   — ISO-8601 local datetime, no timezone offset (e.g. "2026-03-10T14:00:00")
   "end":         string   — ISO-8601 local datetime, no timezone offset
   "location":    string | null
   "description": string | null
   "recurrence":  string | null  — RFC 5545 RRULE string if the event repeats, otherwise null
+  "isTask":      boolean  — true if this is a task/assignment/deadline (things to DO), false if it's an event/activity (scheduled TIME for doing something)
+
+Task vs Event Detection:
+- Treat as TASK (isTask: true) when:
+  - Input contains deadline keywords: "due", "deadline", "by [date]", "submit by"
+  - Input has action verbs without specific time: "do X", "write X", "complete X", "finish X", "review X", "submit X"
+- Treat as EVENT (isTask: false) when:
+  - Input specifies time: "at 6", "2-4pm", "from X to Y"
+  - Input describes scheduled activities: "dinner with", "meeting", "coffee", "lunch"
+  - Input is about blocking time: "work on X from 2-5pm"
+
+{TASK_FORMATTING_RULES}
 
 Rules:
 - Resolve relative expressions ("tomorrow", "next Monday", "in 3 days") using the current date above.
@@ -48,16 +63,28 @@ Rules:
 - Output ONLY the JSON object. Any other text will cause an error.`
 
 const SYSTEM_PROMPT_MANUAL = `You are a calendar parsing assistant.
-The user will describe a calendar event in natural language.
+The user will describe a calendar event or task in natural language.
 The current date and time is: {NOW_ISO}
 
-Extract the event and return ONLY a valid JSON object — no markdown, no explanation — with exactly these fields:
+Extract the event/task and return ONLY a valid JSON object — no markdown, no explanation — with exactly these fields:
   "title":       string   — short event title, properly capitalized and grammatically clean (e.g. "Dinner with Gabe", not "dinner w/gabe")
   "start":       string   — ISO-8601 local datetime, no timezone offset (e.g. "2026-03-10T14:00:00")
   "end":         string   — ISO-8601 local datetime, no timezone offset
   "location":    string | null
   "description": string | null
   "recurrence":  string | null  — RFC 5545 RRULE string if the event repeats, otherwise null
+  "isTask":      boolean  — true if this is a task/assignment/deadline (things to DO), false if it's an event/activity (scheduled TIME for doing something)
+
+Task vs Event Detection:
+- Treat as TASK (isTask: true) when:
+  - Input contains deadline keywords: "due", "deadline", "by [date]", "submit by"
+  - Input has action verbs without specific time: "do X", "write X", "complete X", "finish X", "review X", "submit X"
+- Treat as EVENT (isTask: false) when:
+  - Input specifies time: "at 6", "2-4pm", "from X to Y"
+  - Input describes scheduled activities: "dinner with", "meeting", "coffee", "lunch"
+  - Input is about blocking time: "work on X from 2-5pm"
+
+{TASK_FORMATTING_RULES}
 
 User defaults (use these when the event description does not specify):
   Default start time: {DEFAULT_START_TIME}
@@ -99,35 +126,77 @@ function isValidParsedEvent(obj: unknown): obj is ParsedEvent {
     typeof e.end === 'string' &&
     (e.location === null || typeof e.location === 'string') &&
     (e.description === null || typeof e.description === 'string') &&
-    (e.recurrence === null || typeof e.recurrence === 'string')
+    (e.recurrence === null || typeof e.recurrence === 'string') &&
+    typeof e.isTask === 'boolean' &&
+    (e.attendees === undefined || Array.isArray(e.attendees)) &&
+    (e.unknownAttendees === undefined || Array.isArray(e.unknownAttendees))
   )
 }
 
 type ParseDefaults = {
   smartDefaults: boolean
+  tasksAsAllDayEvents: boolean
   defaultDuration: number
   defaultStartTime: string
   defaultLocation: string
 }
 
+export type PersonContact = {
+  firstName: string
+  lastName: string
+  email: string
+}
+
 export async function parseEventWithAI(
-  input: { text: string; nowISO: string; defaults?: ParseDefaults },
+  input: { text: string; nowISO: string; defaults?: ParseDefaults; people?: PersonContact[] },
   apiKey: string
 ): Promise<ParsedEvent> {
   const genAI = new GoogleGenerativeAI(apiKey)
 
   const useSmartDefaults = input.defaults?.smartDefaults !== false
+  const tasksAsAllDayEvents = input.defaults?.tasksAsAllDayEvents !== false
+
+  const taskFormattingRules = tasksAsAllDayEvents
+    ? `Task Formatting (when isTask is true):
+- Create an all-day event on the due date
+- Title: Clean task name with smart suffix ("Homework Due" or "Submit Report" based on context)
+- Start: Due date at 00:00:00
+- End: Due date at 23:59:59
+- Description: "Deadline: [formatted due date, e.g. February 12, 2026]"
+`
+    : ''
 
   let systemPrompt: string
   if (useSmartDefaults) {
-    systemPrompt = SYSTEM_PROMPT_SMART.replace('{NOW_ISO}', input.nowISO)
+    systemPrompt = SYSTEM_PROMPT_SMART
+      .replace('{NOW_ISO}', input.nowISO)
+      .replace('{TASK_FORMATTING_RULES}', taskFormattingRules)
   } else {
     const d = input.defaults!
     systemPrompt = SYSTEM_PROMPT_MANUAL
       .replace(/{NOW_ISO}/g, input.nowISO)
+      .replace(/{TASK_FORMATTING_RULES}/g, taskFormattingRules)
       .replace(/{DEFAULT_START_TIME}/g, d.defaultStartTime)
       .replace(/{DEFAULT_DURATION}/g, String(d.defaultDuration))
       .replace(/{DEFAULT_LOCATION}/g, d.defaultLocation)
+  }
+
+  if (input.people && input.people.length > 0) {
+    const peopleLines = input.people
+      .map((p) => `- ${p.firstName} ${p.lastName}: ${p.email}`)
+      .join('\n')
+    const peopleBlock = `
+Known people (resolve their names to emails when mentioned):
+${peopleLines}
+
+Additional fields to return:
+  "attendees":        array of { "email": string, "name": string } — resolved known people mentioned in the event; empty array if none
+  "unknownAttendees": array of strings — names mentioned in the event NOT found in Known people; empty array if none
+`
+    systemPrompt = systemPrompt.replace(
+      '- Output ONLY the JSON object. Any other text will cause an error.',
+      `${peopleBlock}- Output ONLY the JSON object. Any other text will cause an error.`
+    )
   }
 
   const model = genAI.getGenerativeModel({
