@@ -22,6 +22,11 @@
   --color-failure: #b33a5e;   /* cool red / berry — slight blueish cast to match palette */
   --color-success: #3d8a6e;   /* muted teal-green — harmonious with blue palette */
 
+  /* Shadow tokens */
+  --shadow-sm:    0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md:    0 2px 6px rgba(0, 0, 0, 0.12);
+  --shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.20);
+
   /* Utility */
   --color-white:   #ffffff;
   --color-bg-body: #fcfdfe;   /* popup background */

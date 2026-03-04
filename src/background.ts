@@ -1,3 +1,5 @@
+import { COLORS } from './styles/tokens';
+
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 const PREF_KEY = 'instacal_prefs';
 const DEFAULT_PREFS = {
@@ -213,7 +215,11 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
     console.log('[InstaCal] Context menu clicked, processing:', text);
 
     const tokens = await getTokens();
-    if (!tokens) return;
+    if (!tokens) {
+        setBadge('!', COLORS.failure);
+        chrome.storage.local.set({ instacal_badge_error: 'Not signed in. Open InstaCal to sign in.' });
+        return;
+    }
 
     const prefsResult = await getFromStorage([PREF_KEY]);
     const prefs = { ...DEFAULT_PREFS, ...prefsResult[PREF_KEY] };
@@ -226,14 +232,14 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
         if (prefs.autoReview) {
             await createCalendarEvent(tokens.calendarToken, event);
             console.log('[InstaCal] Event added to calendar');
-            setBadge('+', '#22c55e');
+            setBadge('+', COLORS.success);
         } else {
             chrome.tabs.create({ url: buildGoogleCalendarUrl(event) });
             console.log('[InstaCal] Opened Google Calendar tab');
         }
     } catch (err) {
         console.error('[InstaCal] Error:', err);
-        setBadge('!', '#ef4444');
+        setBadge('!', COLORS.failure);
         chrome.storage.local.set({ instacal_badge_error: err instanceof Error ? err.message : String(err) });
     }
 });
