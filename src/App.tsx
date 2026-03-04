@@ -375,6 +375,12 @@ function App() {
         className={`event-input ${authLoading ? "event-input-loading" : ""}`}
         placeholder="Dinner with Gabe this Monday at 6"
         readOnly={authLoading}
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            e.preventDefault();
+            handleAddEvent();
+          }
+        }}
       />
       <div className="btn-row">
         <button
@@ -382,7 +388,7 @@ function App() {
           disabled={status === "loading" || authLoading}
           onClick={handleAddEvent}
         >
-          {status === "loading" ? "Parsing…" : "Add Event"}
+          {status === "loading" ? "Adding…" : "Add Event"}
         </button>
         <button
           className="export-btn"
