@@ -102,6 +102,11 @@ app.post(
       return
     }
 
+    if (people !== undefined && (!Array.isArray(people) || people.length > 10)) {
+      res.status(400).json({ error: 'people must be an array of at most 10 entries' })
+      return
+    }
+
     const uid = res.locals.uid as string
 
     try {

@@ -185,14 +185,18 @@ export async function parseEventWithAI(
     const peopleLines = input.people
       .map((p) => `- ${p.firstName} ${p.lastName}: ${p.email}`)
       .join('\n')
-    systemPrompt += `
-
+    const peopleBlock = `
 Known people (resolve their names to emails when mentioned):
 ${peopleLines}
 
 Additional fields to return:
   "attendees":        array of { "email": string, "name": string } — resolved known people mentioned in the event; empty array if none
-  "unknownAttendees": array of strings — names mentioned in the event NOT found in Known people; empty array if none`
+  "unknownAttendees": array of strings — names mentioned in the event NOT found in Known people; empty array if none
+`
+    systemPrompt = systemPrompt.replace(
+      '- Output ONLY the JSON object. Any other text will cause an error.',
+      `${peopleBlock}- Output ONLY the JSON object. Any other text will cause an error.`
+    )
   }
 
   const model = genAI.getGenerativeModel({
