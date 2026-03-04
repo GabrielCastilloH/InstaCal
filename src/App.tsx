@@ -58,6 +58,15 @@ function App() {
         try {
           const credential = GoogleAuthProvider.credential(null, googleToken);
           const result = await signInWithCredential(auth, credential);
+          // Cache tokens for background service worker
+          const idToken = await result.user.getIdToken();
+          chrome.storage.local.set({
+            instacal_firebase_id_token: idToken,
+            instacal_firebase_id_token_expiry: Date.now() + 55 * 60 * 1000,
+            instacal_firebase_refresh_token: result.user.refreshToken,
+            instacal_firebase_api_key: import.meta.env.VITE_FIREBASE_API_KEY as string,
+            instacal_backend_url: (import.meta.env.VITE_CLOUD_FUNCTION_URL as string) ?? '',
+          });
           if (!cancelled) {
             setUser(result.user);
             setAuthLoading(false);
@@ -102,21 +111,17 @@ function App() {
 
   useEffect(() => { loadPrefsIntoState(); }, []);
 
-  // Process text from context menu (highlight → right-click → Add to InstaCal)
+  // Clear badge and show any pending error from background context-menu flow
   useEffect(() => {
-    if (!user || authLoading || settingsPage) return;
-
-    chrome.storage.local.get(['instacal_context_text'], (result) => {
-      const text = result?.instacal_context_text as string | undefined;
-      if (!text?.trim()) return;
-
-      chrome.storage.local.remove(['instacal_context_text']);
-      if (inputRef.current) {
-        inputRef.current.value = text.trim();
-        handleAddEvent();
+    chrome.action.setBadgeText({ text: '' });
+    chrome.storage.local.get(['instacal_badge_error'], (result) => {
+      if (result.instacal_badge_error) {
+        setStatus('error');
+        setErrorMessage(String(result.instacal_badge_error));
+        chrome.storage.local.remove('instacal_badge_error');
       }
     });
-  }, [user, authLoading, settingsPage]);
+  }, []);
 
   // Re-load prefs when returning from settings so changes apply immediately
   useEffect(() => {
@@ -128,6 +133,7 @@ function App() {
 
   async function handleAddEvent() {
     const text = inputRef.current?.value.trim() ?? "";
+    console.log('[InstaCal] handleAddEvent called, text:', text);
     if (!text) return;
 
     setStatus("loading");
@@ -136,9 +142,11 @@ function App() {
     try {
       const idToken = await getFirebaseIdToken();
       const calendarToken = await getGoogleCalendarToken();
+      console.log('[InstaCal] tokens', { hasIdToken: !!idToken, hasCalendarToken: !!calendarToken });
       if (!idToken || !calendarToken) {
         throw new Error("Not authenticated");
       }
+      console.log('[InstaCal] calling parseEvent with prefs:', prefs);
       const event = await parseEvent(text, idToken, {
         smartDefaults: prefs.smartDefaults,
         tasksAsAllDayEvents: prefs.tasksAsAllDayEvents,
@@ -146,14 +154,19 @@ function App() {
         defaultStartTime: prefs.defaultStartTime,
         defaultLocation: prefs.defaultLocation,
       });
+      console.log('[InstaCal] parseEvent result:', event);
 
       if (prefs.autoReview) {
+        console.log('[InstaCal] autoReview=true, creating calendar event directly');
         await createCalendarEvent(calendarToken, event);
         setStatus("success");
       } else {
-        chrome.tabs.create({ url: buildGoogleCalendarUrl(event) });
+        const url = buildGoogleCalendarUrl(event);
+        console.log('[InstaCal] autoReview=false, opening Google Calendar URL:', url);
+        chrome.tabs.create({ url });
       }
     } catch (err) {
+      console.error('[InstaCal] handleAddEvent error:', err);
       setStatus("error");
       setErrorMessage((err as Error).message);
     }
