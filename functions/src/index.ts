@@ -125,7 +125,6 @@ app.post(
       const event = await parseEventWithAI({ text: text.trim(), nowISO, defaults, people }, apiKey)
       res.json(event)
     } catch (err) {
-      console.error('[/parse] error:', err)
       res.status(500).json({ error: 'parse failed' })
     }
   }

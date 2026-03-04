@@ -171,12 +171,10 @@ function App() {
       if (!calendarToken) throw new Error("Not authenticated");
 
       if (prefs.autoReview) {
-        console.log('[InstaCal] autoReview=true, creating calendar event directly');
         await createCalendarEvent(calendarToken, event, allAttendees, prefs.notifyAttendees);
         setStatus("success");
       } else {
         const url = buildGoogleCalendarUrl(event, allAttendees);
-        console.log('[InstaCal] autoReview=false, opening Google Calendar URL:', url);
         chrome.tabs.create({ url });
       }
     } catch (err) {
@@ -192,7 +190,6 @@ function App() {
 
   async function handleAddEvent() {
     const text = inputRef.current?.value.trim() ?? "";
-    console.log('[InstaCal] handleAddEvent called, text:', text);
     if (!text) return;
 
     setStatus("loading");
@@ -201,7 +198,6 @@ function App() {
     try {
       const idToken = await getFirebaseIdToken();
       const calendarToken = await getGoogleCalendarToken();
-      console.log('[InstaCal] tokens', { hasIdToken: !!idToken, hasCalendarToken: !!calendarToken });
       if (!idToken || !calendarToken) {
         throw new Error("Not authenticated");
       }
@@ -212,7 +208,6 @@ function App() {
         email: p.email,
       }));
 
-      console.log('[InstaCal] calling parseEvent with prefs:', prefs);
       const event = await parseEvent(text, idToken, {
         smartDefaults: prefs.smartDefaults,
         tasksAsAllDayEvents: prefs.tasksAsAllDayEvents,
@@ -220,7 +215,6 @@ function App() {
         defaultStartTime: prefs.defaultStartTime,
         defaultLocation: prefs.defaultLocation,
       }, peopleContacts);
-      console.log('[InstaCal] parseEvent result:', event);
 
       if (event.unknownAttendees && event.unknownAttendees.length > 0) {
         // Kick off interactive resolution queue
@@ -265,9 +259,8 @@ function App() {
 
       let updatedPeople = [...people];
       if (updatedPeople.length >= MAX_PEOPLE) {
-        // LRU eviction: remove person with smallest lastUsed
         const lruIndex = updatedPeople.reduce(
-          (minIdx, p, idx) => p.lastUsed < updatedPeople[minIdx].lastUsed ? idx : minIdx,
+          (minIdx, p, idx) => p.lastUsed < updatedPeople[minIdx].lastUsed ? idx :           minIdx,
           0
         );
         updatedPeople.splice(lruIndex, 1);

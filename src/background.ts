@@ -61,7 +61,6 @@ async function getTokens() {
             console.error('[InstaCal] Firebase token expired and no refresh token available');
             return null;
         }
-        console.log('[InstaCal] Firebase ID token expired, refreshing...');
         try {
             const resp = await fetch(
                 `https://securetoken.googleapis.com/v1/token?key=${apiKey}`,
@@ -84,7 +83,6 @@ async function getTokens() {
                 instacal_firebase_id_token_expiry: Date.now() + expiresIn * 1000,
                 instacal_firebase_refresh_token: data.refresh_token,
             });
-            console.log('[InstaCal] Firebase token refreshed successfully');
         } catch (err) {
             console.error('[InstaCal] Token refresh error:', err);
             return null;
@@ -212,8 +210,6 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
     const text = info.selectionText.trim();
     if (!text) return;
 
-    console.log('[InstaCal] Context menu clicked, processing:', text);
-
     const tokens = await getTokens();
     if (!tokens) {
         setBadge('!', COLORS.failure);
@@ -225,17 +221,13 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
     const prefs = { ...DEFAULT_PREFS, ...prefsResult[PREF_KEY] };
 
     try {
-        console.log('[InstaCal] Parsing event with autoReview:', prefs.autoReview);
         const event = await parseEvent(text, tokens.firebaseToken, prefs, tokens.backendUrl);
-        console.log('[InstaCal] Parsed:', event);
 
         if (prefs.autoReview) {
             await createCalendarEvent(tokens.calendarToken, event);
-            console.log('[InstaCal] Event added to calendar');
             setBadge('+', COLORS.success);
         } else {
             chrome.tabs.create({ url: buildGoogleCalendarUrl(event) });
-            console.log('[InstaCal] Opened Google Calendar tab');
         }
     } catch (err) {
         console.error('[InstaCal] Error:', err);
