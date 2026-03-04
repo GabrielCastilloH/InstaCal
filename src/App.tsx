@@ -168,6 +168,7 @@ function App() {
       <SettingsPage
         onBack={() => setSettingsPage(null)}
         onNavigate={(page) => setSettingsPage(page)}
+        onSignOut={() => { setUser(null); setSettingsPage(null); }}
       />
     );
   }
