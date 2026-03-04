@@ -144,11 +144,11 @@
 .people-form-actions {
   display: flex;
   gap: 6px;
-  justify-content: flex-end;
   margin-top: 2px;
 }
 
 .people-btn-cancel {
+  flex: 1;
   height: 28px;
   padding: 0 12px;
   font-size: 12px;
@@ -168,6 +168,7 @@
 }
 
 .people-btn-save {
+  flex: 1;
   height: 28px;
   padding: 0 12px;
   font-size: 12px;
