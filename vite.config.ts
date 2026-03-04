@@ -24,10 +24,13 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         background: resolve(__dirname, 'src/background.ts'),
+        auth: resolve(__dirname, 'src/auth.ts'),
       },
       output: {
         entryFileNames: (chunk) =>
-          chunk.name === 'background' ? '[name].js' : 'assets/[name]-[hash].js',
+          chunk.name === 'background' || chunk.name === 'auth'
+            ? '[name].js'
+            : 'assets/[name]-[hash].js',
       },
     },
   },
