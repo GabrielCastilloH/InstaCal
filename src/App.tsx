@@ -10,6 +10,7 @@ import SignIn from "./components/SignIn";
 import { parseEvent, type ParsedEvent } from "./services/parseEvent";
 import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
+import { fetchAvailability } from "./services/availability";
 import "./App.css";
 
 function buildGoogleCalendarUrl(event: ParsedEvent): string {
@@ -35,17 +36,27 @@ function App() {
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [copyStatus, setCopyStatus] = useState<"idle" | "loading" | "copied" | "error">("idle");
 
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
+      // Store config values so background.js can silently refresh tokens without opening the popup
+      chrome.storage.local.set({
+        'instacal_google_client_id': import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string,
+        'instacal_firebase_api_key': import.meta.env.VITE_FIREBASE_API_KEY as string,
+      });
+
       // Check for a stored Google token and re-authenticate
       const googleToken = await getGoogleCalendarToken();
       if (googleToken) {
         try {
           const credential = GoogleAuthProvider.credential(null, googleToken);
           const result = await signInWithCredential(auth, credential);
+          // Cache Firebase ID token + refresh token immediately so background.js
+          // can process context-menu events without ever opening the popup
+          await getFirebaseIdToken();
           if (!cancelled) {
             setUser(result.user);
             setAuthLoading(false);
@@ -74,22 +85,6 @@ function App() {
   }
 
   useEffect(() => { loadPrefsIntoState(); }, []);
-
-  // Process text from context menu (highlight → right-click → Add to InstaCal)
-  useEffect(() => {
-    if (!user || authLoading || settingsPage) return;
-
-    chrome.storage.local.get(['instacal_context_text'], (result) => {
-      const text = result?.instacal_context_text as string | undefined;
-      if (!text?.trim()) return;
-
-      chrome.storage.local.remove(['instacal_context_text']);
-      if (inputRef.current) {
-        inputRef.current.value = text.trim();
-        handleAddEvent();
-      }
-    });
-  }, [user, authLoading, settingsPage]);
 
   // Re-load prefs when returning from settings so changes apply immediately
   useEffect(() => {
@@ -128,6 +123,21 @@ function App() {
     } catch (err) {
       setStatus("error");
       setErrorMessage((err as Error).message);
+    }
+  }
+
+  async function handleExportAvailability() {
+    setCopyStatus("loading");
+    try {
+      const calendarToken = await getGoogleCalendarToken();
+      if (!calendarToken) throw new Error("Not authenticated");
+      const text = await fetchAvailability(calendarToken);
+      await navigator.clipboard.writeText(text);
+      setCopyStatus("copied");
+      setTimeout(() => setCopyStatus("idle"), 2000);
+    } catch (err) {
+      setCopyStatus("error");
+      setTimeout(() => setCopyStatus("idle"), 3000);
     }
   }
 
@@ -186,33 +196,54 @@ function App() {
         placeholder="Dinner with Gabe this Monday at 6"
         readOnly={authLoading}
       />
-      <button
-        className="add-event-btn"
-        disabled={status === "loading" || authLoading}
-        onClick={handleAddEvent}
-      >
-        {status === "loading" ? "Parsing…" : "Add Event"}
-      </button>
+      <div className="btn-row">
+        <button
+          className="add-event-btn"
+          disabled={status === "loading" || authLoading}
+          onClick={handleAddEvent}
+        >
+          {status === "loading" ? "Parsing…" : "Add Event"}
+        </button>
+        <button
+          className="export-btn"
+          disabled={copyStatus === "loading" || authLoading}
+          onClick={handleExportAvailability}
+          aria-label="Copy availability to clipboard"
+          title="Copy availability to clipboard"
+        >
+          {copyStatus === "copied" ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+            </svg>
+          )}
+        </button>
+      </div>
 
-      {status === "success" && (
+      {copyStatus === "copied" && (
         <p className="status-msg status-success">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Availability copied!
+        </p>
+      )}
+      {copyStatus === "error" && (
+        <p className="status-msg status-error">Couldn't fetch availability.</p>
+      )}
+      {copyStatus === "idle" && status === "success" && (
+        <p className="status-msg status-success">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
           Added to Calendar
         </p>
       )}
-      {status === "error" && (
+      {copyStatus === "idle" && status === "error" && (
         <p className="status-msg status-error">
           {errorMessage ?? "Something went wrong."}
         </p>

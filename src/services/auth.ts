@@ -2,6 +2,9 @@ import { auth } from '../lib/firebase'
 
 const GOOGLE_CALENDAR_TOKEN_KEY = 'instacal_google_calendar_token'
 const GOOGLE_CALENDAR_TOKEN_EXPIRY_KEY = 'instacal_google_calendar_token_expiry'
+const FIREBASE_TOKEN_KEY = 'instacal_firebase_token'
+const FIREBASE_TOKEN_EXPIRY_KEY = 'instacal_firebase_token_expiry'
+export const FIREBASE_REFRESH_TOKEN_KEY = 'instacal_firebase_refresh_token'
 
 const OAUTH_SCOPES = [
   'openid',
@@ -14,7 +17,14 @@ export async function getFirebaseIdToken(): Promise<string | null> {
   const user = auth.currentUser
   if (!user) return null
   try {
-    return await user.getIdToken()
+    const token = await user.getIdToken()
+    // Cache for background.js (expires ~55 min, before Firebase's 1-hour TTL)
+    chrome.storage.local.set({
+      [FIREBASE_TOKEN_KEY]: token,
+      [FIREBASE_TOKEN_EXPIRY_KEY]: Date.now() + 55 * 60 * 1000,
+      [FIREBASE_REFRESH_TOKEN_KEY]: user.refreshToken,
+    })
+    return token
   } catch {
     return null
   }

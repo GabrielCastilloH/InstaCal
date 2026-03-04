@@ -34,6 +34,33 @@
   background-color: var(--color-bg-subtle);
 }
 
+.gear-btn--copied {
+  color: var(--color-interactive-hover);
+}
+
+.export-btn {
+  flex-shrink: 0;
+  width: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-interactive-primary);
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.export-btn:hover:not(:disabled) {
+  background-color: var(--color-interactive-hover);
+}
+
+.export-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .popup-container .page-header {
   margin-bottom: 0;
 }
@@ -78,9 +105,15 @@
   pointer-events: none;
 }
 
-.add-event-btn {
+.btn-row {
+  display: flex;
+  gap: 8px;
   width: 100%;
   margin-top: 12px;
+}
+
+.add-event-btn {
+  flex: 1;
   padding: 9px 0;
   background-color: var(--color-interactive-primary);
   color: #ffffff;
@@ -101,6 +134,7 @@
   opacity: 0.7;
   cursor: not-allowed;
 }
+
 
 .status-msg {
   display: flex;

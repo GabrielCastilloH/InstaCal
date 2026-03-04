@@ -22,6 +22,7 @@
     "https://us-central1-instacal-app.cloudfunctions.net/*",
     "https://instacal-app.firebaseapp.com/*",
     "https://*.firebaseapp.com/*",
+    "https://identitytoolkit.googleapis.com/*",
     "https://securetoken.googleapis.com/*",
     "https://www.gstatic.com/*",
     "https://apis.google.com/*",
