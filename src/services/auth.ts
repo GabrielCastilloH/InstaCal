@@ -2,8 +2,8 @@ import { auth } from '../lib/firebase'
 
 const GOOGLE_CALENDAR_TOKEN_KEY = 'instacal_google_calendar_token'
 const GOOGLE_CALENDAR_TOKEN_EXPIRY_KEY = 'instacal_google_calendar_token_expiry'
-const FIREBASE_TOKEN_KEY = 'instacal_firebase_token'
-const FIREBASE_TOKEN_EXPIRY_KEY = 'instacal_firebase_token_expiry'
+const FIREBASE_TOKEN_KEY = 'instacal_firebase_id_token'
+const FIREBASE_TOKEN_EXPIRY_KEY = 'instacal_firebase_id_token_expiry'
 export const FIREBASE_REFRESH_TOKEN_KEY = 'instacal_firebase_refresh_token'
 
 const OAUTH_SCOPES = [

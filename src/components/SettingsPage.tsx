@@ -10,6 +10,7 @@ type SettingsSubPage = "help" | "preferences" | "coffee";
 interface SettingsPageProps {
   onBack: () => void;
   onNavigate: (page: SettingsSubPage) => void;
+  onSignOut: () => void;
 }
 
 const InfoIcon = () => (
@@ -86,11 +87,12 @@ const ChevronRight = () => (
 export default function SettingsPage({
   onBack,
   onNavigate,
+  onSignOut,
 }: SettingsPageProps) {
   async function handleSignOut() {
     await clearGoogleCalendarToken();
     await signOut(auth);
-    onBack();
+    onSignOut();
   }
 
   const backButton = (

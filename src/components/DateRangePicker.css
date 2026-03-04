@@ -1,9 +1,7 @@
-@import '../styles/colors.css';
-
 .dp-overlay {
   position: absolute;
   inset: 0;
-  background: #FCFDFE;
+  background: var(--color-bg-body);
   border-radius: 12px;
   display: flex;
   flex-direction: column;

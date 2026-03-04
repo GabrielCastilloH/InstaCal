@@ -7,10 +7,20 @@ export type ParsedEvent = {
   location: string | null
   description: string | null
   recurrence: string | null
+  isTask: boolean
+}
+
+export function isAllDayEvent(event: ParsedEvent): boolean {
+  const startDate = event.start.slice(0, 10)
+  const endDate = event.end.slice(0, 10)
+  const startTime = event.start.slice(11, 19)
+  const endTime = event.end.slice(11, 19)
+  return startDate === endDate && startTime === '00:00:00' && endTime === '23:59:59'
 }
 
 export type ParseDefaults = {
   smartDefaults: boolean
+  tasksAsAllDayEvents: boolean
   defaultDuration: number
   defaultStartTime: string
   defaultLocation: string
