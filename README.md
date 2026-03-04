@@ -28,8 +28,8 @@ Simply type something like **"Lunch with Sarah tomorrow at noon"** and InstaCal 
 
 ## Setup
 
-- **Gemini API**: See [GEMINI_SETUP.md](GEMINI_SETUP.md) for API key setup and deployment
-- **Firebase**: See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for Firebase configuration (if available)
+- **Gemini API**: Add your API key to `functions/.env.local` (see `functions/.env.example`)
+- **Firebase**: Configure via `firebase.json` and `.firebaserc`
 
 ## Contributing
 
