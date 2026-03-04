@@ -38,7 +38,6 @@ export default function UnknownPersonModal({
             type="checkbox"
             checked={saveToDefaults}
             onChange={(e) => setSaveToDefaults(e.target.checked)}
-            disabled={isFull && !saveToDefaults}
           />
           <span className="modal-checkbox-label">Add {name} to People</span>
         </label>
