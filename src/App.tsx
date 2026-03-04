@@ -144,7 +144,8 @@ function App() {
       await navigator.clipboard.writeText(text);
       setCopyStatus("copied");
       setTimeout(() => setCopyStatus("idle"), 2000);
-    } catch {
+    } catch (err) {
+      console.error('InstaCal availability error:', err);
       setCopyStatus("error");
       setTimeout(() => setCopyStatus("idle"), 3000);
     }

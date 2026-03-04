@@ -11,6 +11,7 @@ const OAUTH_SCOPES = [
   'email',
   'profile',
   'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.freebusy',
 ]
 
 export async function getFirebaseIdToken(): Promise<string | null> {
