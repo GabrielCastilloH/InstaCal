@@ -17,7 +17,7 @@ chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.removeAll(() => {
         chrome.contextMenus.create({
             id: 'add-to-instacal',
-            title: 'Add to InstaCal',
+            title: 'Add to Calendar with InstaCal',
             contexts: ['selection'],
         });
     });

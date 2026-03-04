@@ -59,6 +59,24 @@ export default function HelpContentPage({ onBack }: HelpContentPageProps) {
           <span className="step-text">Your free slots are copied to your clipboard — ready to paste anywhere.</span>
         </div>
       </div>
+
+      <div className="help-divider" />
+
+      <div className="help-section">
+        <p className="help-feature-label">Add from Any Page</p>
+        <div className="help-step">
+          <span className="step-num">1</span>
+          <span className="step-text">Highlight any text on a webpage (e.g. an event description).</span>
+        </div>
+        <div className="help-step">
+          <span className="step-num">2</span>
+          <span className="step-text">Right-click and choose <strong>Add to Calendar with InstaCal</strong>.</span>
+        </div>
+        <div className="help-step">
+          <span className="step-num">3</span>
+          <span className="step-text">InstaCal opens with the details pre-filled — just review and add.</span>
+        </div>
+      </div>
     </div>
   )
 }

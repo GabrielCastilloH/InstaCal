@@ -23,10 +23,8 @@ Simply type something like **"Lunch with Sarah tomorrow at noon"** and InstaCal 
 
 - Add stars and decoration to the sign in page
 - Ability to invite people to an event
-- Ability to export availability
 - Add an event under a specific calendar
 - Edit with AI button in the edit calendar view
-- Highlight text to event
 
 ## Setup
 
