@@ -8,7 +8,8 @@ function parseHHMM(t: string): { h: number; m: number } {
   return { h: h ?? 8, m: m ?? 0 }
 }
 
-const MIN_SLOT_MINUTES = 30
+const MIN_SLOT_MINUTES = 20
+const EVENT_BUFFER_MS = 10 * 60_000
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -120,7 +121,10 @@ export async function fetchAvailability(
 
   const data = await response.json()
   const busy: Slot[] = (data.calendars?.primary?.busy ?? []).map(
-    (b: { start: string; end: string }) => ({ start: new Date(b.start), end: new Date(b.end) })
+    (b: { start: string; end: string }) => ({
+      start: new Date(new Date(b.start).getTime() - EVENT_BUFFER_MS),
+      end: new Date(new Date(b.end).getTime() + EVENT_BUFFER_MS),
+    })
   )
 
   const tzAbbr = getTzAbbr()
