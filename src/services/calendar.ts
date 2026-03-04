@@ -3,9 +3,14 @@ import { isAllDayEvent } from './parseEvent'
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
 
-export async function createCalendarEvent(token: string, event: ParsedEvent): Promise<unknown> {
+export async function createCalendarEvent(
+  token: string,
+  event: ParsedEvent,
+  attendees?: Array<{ email: string; name: string }>
+): Promise<unknown> {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const allDay = isAllDayEvent(event)
+  const attendeeList = attendees ?? []
 
   const body = allDay
     ? {
@@ -21,6 +26,7 @@ export async function createCalendarEvent(token: string, event: ParsedEvent): Pr
         ...(event.location != null && { location: event.location }),
         ...(event.description != null && { description: event.description }),
         ...(event.recurrence != null && { recurrence: [`RRULE:${event.recurrence}`] }),
+        ...(attendeeList.length > 0 && { attendees: attendeeList.map((a) => ({ email: a.email, displayName: a.name })) }),
       }
     : {
         summary: event.title,
@@ -29,6 +35,7 @@ export async function createCalendarEvent(token: string, event: ParsedEvent): Pr
         ...(event.location != null && { location: event.location }),
         ...(event.description != null && { description: event.description }),
         ...(event.recurrence != null && { recurrence: [`RRULE:${event.recurrence}`] }),
+        ...(attendeeList.length > 0 && { attendees: attendeeList.map((a) => ({ email: a.email, displayName: a.name })) }),
       }
 
   const response = await fetch(CALENDAR_API, {

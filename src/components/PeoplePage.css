@@ -1,0 +1,214 @@
+.people-container {
+  position: relative;
+  width: 320px;
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 20px 18px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-y: auto;
+}
+
+.people-counter {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background-color: var(--color-bg-subtle);
+  border-radius: 10px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.people-list {
+  width: 100%;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.people-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: 24px;
+}
+
+.person-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background-color: var(--color-bg-subtle);
+  gap: 8px;
+}
+
+.person-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.person-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.person-email {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.person-delete-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.person-delete-btn:hover {
+  color: var(--color-interactive-hover);
+  background-color: color-mix(in srgb, var(--color-text-muted) 15%, transparent);
+}
+
+/* Add person form */
+.people-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.people-form-row {
+  display: flex;
+  gap: 6px;
+}
+
+.people-input {
+  flex: 1;
+  height: 28px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1.5px solid color-mix(in srgb, var(--color-text-muted) 40%, transparent);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  background: none;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.people-input:focus {
+  border-color: var(--color-interactive-primary);
+}
+
+.people-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.people-input-full {
+  width: 100%;
+  flex: none;
+}
+
+.people-form-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.people-btn-cancel {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: none;
+  border: 1.5px solid color-mix(in srgb, var(--color-text-muted) 40%, transparent);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.people-btn-cancel:hover {
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-subtle);
+}
+
+.people-btn-save {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--color-white);
+  background-color: var(--color-interactive-primary);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.people-btn-save:hover:not(:disabled) {
+  background-color: var(--color-interactive-hover);
+}
+
+.people-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Add button */
+.people-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: none;
+  border: 1.5px dashed color-mix(in srgb, var(--color-text-muted) 40%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+
+.people-add-btn:hover {
+  color: var(--color-interactive-primary);
+  border-color: var(--color-interactive-primary);
+  background-color: var(--color-bg-subtle);
+}

@@ -7,7 +7,7 @@ import { onRequest } from 'firebase-functions/v2/https'
 import { defineSecret } from 'firebase-functions/params'
 import express, { Request, Response } from 'express'
 import cors from 'cors'
-import { parseEventWithAI, ParsedEvent } from './gemini'
+import { parseEventWithAI, ParsedEvent, PersonContact } from './gemini'
 
 admin.initializeApp()
 
@@ -88,13 +88,14 @@ interface ParseRequestBody {
   text?: string
   now?: string
   defaults?: ParseDefaults
+  people?: PersonContact[]
 }
 
 app.post(
   '/parse',
   verifyAuth,
   async (req: Request<object, ParsedEvent | { error: string }, ParseRequestBody>, res: Response) => {
-    const { text, now, defaults } = req.body
+    const { text, now, defaults, people } = req.body
 
     if (!text || text.trim().length === 0) {
       res.status(400).json({ error: 'text is required' })
@@ -117,7 +118,7 @@ app.post(
 
     try {
       const apiKey = getGeminiApiKey()
-      const event = await parseEventWithAI({ text: text.trim(), nowISO, defaults }, apiKey)
+      const event = await parseEventWithAI({ text: text.trim(), nowISO, defaults, people }, apiKey)
       res.json(event)
     } catch (err) {
       console.error('[/parse] error:', err)

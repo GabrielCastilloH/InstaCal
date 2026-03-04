@@ -8,6 +8,8 @@ export type ParsedEvent = {
   description: string | null
   recurrence: string | null
   isTask: boolean
+  attendees?: Array<{ email: string; name: string }>
+  unknownAttendees?: string[]
 }
 
 export function isAllDayEvent(event: ParsedEvent): boolean {
@@ -26,7 +28,18 @@ export type ParseDefaults = {
   defaultLocation: string
 }
 
-export async function parseEvent(text: string, idToken: string, defaults?: ParseDefaults): Promise<ParsedEvent> {
+export type PersonContact = {
+  firstName: string
+  lastName: string
+  email: string
+}
+
+export async function parseEvent(
+  text: string,
+  idToken: string,
+  defaults?: ParseDefaults,
+  people?: PersonContact[]
+): Promise<ParsedEvent> {
   const response = await fetch(`${BACKEND_URL}/parse`, {
     method: 'POST',
     headers: {
@@ -37,6 +50,7 @@ export async function parseEvent(text: string, idToken: string, defaults?: Parse
       text,
       now: new Date().toISOString(),
       defaults,
+      people,
     }),
   })
 
