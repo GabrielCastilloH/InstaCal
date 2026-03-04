@@ -50,14 +50,22 @@ function freeSlots(busy: Slot[], windowStart: Date, windowEnd: Date): Slot[] {
   return slots
 }
 
-export async function fetchAvailability(googleToken: string): Promise<string> {
+export async function fetchAvailability(
+  googleToken: string,
+  customStart?: Date,
+  customEnd?: Date,
+): Promise<string> {
   const now = new Date()
 
-  const timeMin = new Date(now)
+  const timeMin = customStart ? new Date(customStart) : new Date(now)
   timeMin.setHours(0, 0, 0, 0)
 
-  const timeMax = new Date(timeMin)
-  timeMax.setDate(timeMax.getDate() + 7)
+  const timeMax = customEnd ? new Date(customEnd) : new Date(timeMin)
+  if (customEnd) {
+    timeMax.setHours(23, 59, 59, 999)
+  } else {
+    timeMax.setDate(timeMax.getDate() + 7)
+  }
 
   const response = await fetch(FREEBUSY_API, {
     method: 'POST',
@@ -88,7 +96,9 @@ export async function fetchAvailability(googleToken: string): Promise<string> {
 
   const lines: string[] = []
 
-  for (let i = 0; i < 7; i++) {
+  const numDays = Math.round((timeMax.getTime() - timeMin.getTime()) / (24 * 60 * 60 * 1000)) + 1
+
+  for (let i = 0; i < numDays; i++) {
     const day = new Date(timeMin)
     day.setDate(day.getDate() + i)
 
@@ -117,6 +127,6 @@ export async function fetchAvailability(googleToken: string): Promise<string> {
     lines.push(`${label}: ${slotStr}`)
   }
 
-  if (lines.length === 0) return 'No availability found for the next 7 days.'
+  if (lines.length === 0) return 'No availability found for the selected dates.'
   return lines.join('\n')
 }
