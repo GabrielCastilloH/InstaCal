@@ -1,4 +1,4 @@
-import { COLORS } from './styles/tokens';
+import { COLORS } from './styles/colors';
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 const PREF_KEY = 'instacal_prefs';
