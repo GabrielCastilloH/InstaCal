@@ -9,7 +9,7 @@ import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
 import { parseEvent, type ParsedEvent } from "./services/parseEvent";
 import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
-import { createCalendarEvent } from "./services/calendar";
+import { createCalendarEvent, patchCalendarEvent } from "./services/calendar";
 import { fetchAvailability } from "./services/availability";
 import DateRangePicker from "./components/DateRangePicker";
 import "./App.css";
@@ -39,6 +39,7 @@ function App() {
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [copyStatus, setCopyStatus] = useState<"idle" | "loading" | "copied" | "error">("idle");
+  const [editContext, setEditContext] = useState<{ eventId: string; calendarId: string } | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [availStart, setAvailStart] = useState<Date>(() => {
     const d = new Date(); d.setHours(0, 0, 0, 0); return d;
@@ -71,12 +72,14 @@ function App() {
             setAuthLoading(false);
             // Pre-fill textarea if opened via "Edit with AI" from Google Calendar
             const stored = await new Promise<{ [key: string]: unknown }>((resolve) =>
-              chrome.storage.local.get(['instacal_context_text'], (items) => resolve(items))
+              chrome.storage.local.get(['instacal_context_text', 'instacal_edit_context'], (items) => resolve(items))
             );
             const contextText = stored['instacal_context_text'] as string | undefined;
+            const editCtx = stored['instacal_edit_context'] as { eventId: string; calendarId: string } | null | undefined;
+            chrome.storage.local.remove(['instacal_context_text', 'instacal_edit_context']);
+            if (editCtx?.eventId) setEditContext(editCtx);
             if (contextText && inputRef.current) {
               inputRef.current.value = contextText;
-              chrome.storage.local.remove('instacal_context_text');
               inputRef.current.focus();
               inputRef.current.selectionStart = inputRef.current.selectionEnd = contextText.length;
             }
@@ -149,7 +152,10 @@ function App() {
         defaultLocation: prefs.defaultLocation,
       });
 
-      if (prefs.autoReview) {
+      if (editContext) {
+        await patchCalendarEvent(calendarToken, editContext.calendarId, editContext.eventId, event);
+        setStatus("success");
+      } else if (prefs.autoReview) {
         await createCalendarEvent(calendarToken, event);
         setStatus("success");
       } else {
@@ -245,7 +251,9 @@ function App() {
           disabled={status === "loading" || authLoading}
           onClick={handleAddEvent}
         >
-          {status === "loading" ? "Parsing…" : "Add Event"}
+          {status === "loading"
+            ? (editContext ? "Updating…" : "Parsing…")
+            : (editContext ? "Update Event" : "Add Event")}
         </button>
         <button
           className="export-btn"
@@ -285,7 +293,7 @@ function App() {
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          Added to Calendar
+          {editContext ? "Event updated!" : "Added to Calendar"}
         </p>
       )}
       {copyStatus === "idle" && status === "error" && (

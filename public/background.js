@@ -120,11 +120,117 @@ chrome.runtime.onStartup.addListener(() => {
     injectContentScriptIntoGCalTabs();
 });
 
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.action === 'openEditWithAI') {
+        chrome.storage.local.set({ instacal_edit_context: message.editContext ?? null });
         openPopupWithText(message.text || '');
+        return false;
+    }
+
+    if (message.action === 'editEventWithAI') {
+        handleEditEventWithAI(message).then(sendResponse).catch((err) => {
+            sendResponse({ success: false, error: err.message || 'Unknown error' });
+        });
+        return true; // keep message channel open for async response
     }
 });
+
+async function handleEditEventWithAI({ text, eventId, calendarId }) {
+    const storage = await new Promise((resolve) => {
+        chrome.storage.local.get(
+            [
+                PREF_KEY,
+                GOOGLE_TOKEN_KEY, GOOGLE_TOKEN_EXPIRY_KEY,
+                FIREBASE_TOKEN_KEY, FIREBASE_TOKEN_EXPIRY_KEY,
+                FIREBASE_REFRESH_TOKEN_KEY,
+                GOOGLE_CLIENT_ID_KEY, FIREBASE_API_KEY_KEY,
+            ],
+            resolve
+        );
+    });
+
+    const prefs = { ...DEFAULT_PREFS, ...(storage[PREF_KEY] || {}) };
+    let googleToken   = storage[GOOGLE_TOKEN_KEY];
+    const googleExpiry = storage[GOOGLE_TOKEN_EXPIRY_KEY];
+    let firebaseToken  = storage[FIREBASE_TOKEN_KEY];
+    const firebaseExpiry = storage[FIREBASE_TOKEN_EXPIRY_KEY];
+    const firebaseRefreshToken = storage[FIREBASE_REFRESH_TOKEN_KEY];
+    const clientId     = storage[GOOGLE_CLIENT_ID_KEY];
+    const firebaseApiKey = storage[FIREBASE_API_KEY_KEY];
+
+    const googleValid  = googleToken  && googleExpiry  && Date.now() < googleExpiry  - 5 * 60 * 1000;
+    const firebaseValid = firebaseToken && firebaseExpiry && Date.now() < firebaseExpiry;
+
+    if (!googleValid || !firebaseValid) {
+        if (!clientId || !firebaseApiKey) throw new Error('Not signed in to InstaCal');
+        if (!googleValid) {
+            const { accessToken, expiresIn } = await silentRefreshGoogleToken(clientId);
+            chrome.storage.local.set({
+                [GOOGLE_TOKEN_KEY]: accessToken,
+                [GOOGLE_TOKEN_EXPIRY_KEY]: Date.now() + expiresIn * 1000,
+            });
+            googleToken = accessToken;
+        }
+        if (!firebaseValid) {
+            if (!firebaseRefreshToken) throw new Error('No Firebase refresh token');
+            const { idToken, refreshToken: newRefresh, expiresIn } =
+                await refreshFirebaseToken(firebaseRefreshToken, firebaseApiKey);
+            chrome.storage.local.set({
+                [FIREBASE_TOKEN_KEY]: idToken,
+                [FIREBASE_TOKEN_EXPIRY_KEY]: Date.now() + expiresIn * 1000,
+                [FIREBASE_REFRESH_TOKEN_KEY]: newRefresh,
+            });
+            firebaseToken = idToken;
+        }
+    }
+
+    // Parse the user's description into event fields
+    const parseResp = await fetch(`${BACKEND_URL}/parse`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${firebaseToken}`,
+        },
+        body: JSON.stringify({
+            text,
+            now: new Date().toISOString(),
+            defaults: {
+                smartDefaults: prefs.smartDefaults,
+                defaultDuration: prefs.defaultDuration,
+                defaultStartTime: prefs.defaultStartTime,
+                defaultLocation: prefs.defaultLocation,
+            },
+        }),
+    });
+    if (!parseResp.ok) throw new Error(`Parse error: ${parseResp.status}`);
+    const event = await parseResp.json();
+
+    // PATCH the existing calendar event
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const patchBody = {
+        summary: event.title,
+        start: { dateTime: event.start, timeZone },
+        end:   { dateTime: event.end,   timeZone },
+        ...(event.location    != null && { location:    event.location }),
+        ...(event.description != null && { description: event.description }),
+    };
+    const calId  = calendarId || 'primary';
+    const patchUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`;
+    const patchResp = await fetch(patchUrl, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${googleToken}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(patchBody),
+    });
+    if (!patchResp.ok) {
+        const body = await patchResp.text();
+        throw new Error(`Calendar API error ${patchResp.status}: ${body}`);
+    }
+
+    return { success: true };
+}
 
 chrome.contextMenus.onClicked.addListener(async (info) => {
     if (info.menuItemId !== 'add-to-instacal' || !info.selectionText) return;
