@@ -109,10 +109,12 @@
 .people-form-row {
   display: flex;
   gap: 6px;
+  width: 100%;
 }
 
 .people-input {
   flex: 1;
+  min-width: 0;
   height: 28px;
   padding: 0 8px;
   box-sizing: border-box;
