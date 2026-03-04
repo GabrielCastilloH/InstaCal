@@ -39,6 +39,8 @@ export default function DateRangePicker({ initialStart, initialEnd, onApply, onC
     else setViewMonth(m => m + 1)
   }
 
+  const MAX_DAYS = 14
+
   function handleDayClick(day: Date) {
     if (phase === 'start') {
       setStart(day)
@@ -46,10 +48,15 @@ export default function DateRangePicker({ initialStart, initialEnd, onApply, onC
       setPhase('end')
     } else {
       if (day >= start) {
-        setEnd(day)
+        const maxEnd = new Date(start)
+        maxEnd.setDate(maxEnd.getDate() + MAX_DAYS - 1)
+        setEnd(day > maxEnd ? maxEnd : day)
       } else {
+        // Second click is before first — keep first-clicked date as end (always included)
+        const minStart = new Date(start)
+        minStart.setDate(minStart.getDate() - (MAX_DAYS - 1))
+        setStart(day < minStart ? minStart : day)
         setEnd(start)
-        setStart(day)
       }
       setPhase('start')
     }
