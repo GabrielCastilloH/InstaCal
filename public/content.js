@@ -25,6 +25,7 @@
   }
 
   function showInlineUI({ title, timeText, eventId, calendarId, anchorBtn }) {
+    LOG('showInlineUI called', { title, eventId, calendarId });
     removeInlineUI();
 
     const prefill = title
@@ -32,6 +33,7 @@
       : '';
 
     const rect = anchorBtn.getBoundingClientRect();
+    LOG('anchorBtn rect', rect);
 
     const ui = document.createElement('div');
     ui.id = INSTACAL_UI_ID;
@@ -76,6 +78,7 @@
       '</div>';
 
     document.body.appendChild(ui);
+    LOG('inline UI appended to body, element:', ui);
 
     const input     = ui.querySelector('#instacal-input');
     const status    = ui.querySelector('#instacal-status');
@@ -88,8 +91,14 @@
 
     submitBtn.addEventListener('mouseenter', () => { submitBtn.style.backgroundColor = '#345e7d'; });
     submitBtn.addEventListener('mouseleave', () => { submitBtn.style.backgroundColor = '#6da7cc'; });
-    ui.querySelector('#instacal-close').addEventListener('click', removeInlineUI);
-    cancelBtn.addEventListener('click', removeInlineUI);
+    function closeUI() {
+      LOG('closeUI called');
+      removeInlineUI();
+      window.removeEventListener('mousedown', onWindowMousedown, true);
+      document.removeEventListener('mousedown', onOutsideClick, true);
+    }
+    ui.querySelector('#instacal-close').addEventListener('click', (e) => { LOG('X button clicked', e); closeUI(); });
+    cancelBtn.addEventListener('click', closeUI);
 
     function setStatus(msg, color) {
       status.style.display = msg ? 'block' : 'none';
@@ -132,11 +141,27 @@
       );
     });
 
+    // Intercept mousedown at window level (before GCal's document-level capture listener)
+    // so clicks inside our UI don't trigger GCal's outside-click / popup-close logic.
+    function onWindowMousedown(e) {
+      const inside = ui.contains(e.target);
+      LOG('window mousedown — target:', e.target, '| inside UI:', inside);
+      if (inside) {
+        e.stopPropagation();
+        LOG('stopPropagation called — GCal should NOT see this click');
+      }
+    }
+    window.addEventListener('mousedown', onWindowMousedown, true);
+
     function onOutsideClick(e) {
+      if (ui.contains(e.target)) { LOG('onOutsideClick: inside UI, ignoring'); return; }
       const btn = document.getElementById(INSTACAL_BTN_ID);
-      if (!ui.contains(e.target) && e.target !== btn && !btn?.contains(e.target)) {
+      LOG('onOutsideClick: outside UI, target:', e.target);
+      if (e.target !== btn && !btn?.contains(e.target)) {
+        LOG('onOutsideClick: closing UI');
         removeInlineUI();
         document.removeEventListener('mousedown', onOutsideClick, true);
+        window.removeEventListener('mousedown', onWindowMousedown, true);
       }
     }
     document.addEventListener('mousedown', onOutsideClick, true);
@@ -147,7 +172,7 @@
   function placeEditBtn(anchorEl) {
     // Find the popup dialog for context extraction
     const popup = anchorEl.closest('[role="dialog"]') || anchorEl.closest('[data-eventid]');
-    if (!popup || document.getElementById(INSTACAL_BTN_ID)) return;
+    if (!popup || popup.querySelector('#' + INSTACAL_BTN_ID)) return;
 
     // Extract event context
     const heading  = popup.querySelector('[role="heading"]') || popup.querySelector('h1,h2');
@@ -169,13 +194,12 @@
     btn.id   = INSTACAL_BTN_ID;
     btn.type = 'button';
     btn.title = 'Edit with AI (InstaCal)';
-    // position:fixed so overflow/clipping can never hide it,
-    // but DOM-parent is the popup so GCal sees clicks as inside the dialog
+    // Bottom-of-popup button — inside dialog DOM so GCal doesn't close on click
     btn.style.cssText =
-      'position:fixed;z-index:2147483647;' +
-      'height:28px;display:inline-flex;align-items:center;gap:4px;padding:0 9px;' +
-      'background:#6da7cc;color:#fff;border:none;border-radius:7px;' +
-      'font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;' +
+      'display:flex;align-items:center;justify-content:center;gap:6px;' +
+      'width:calc(100% - 32px);margin:8px 16px 12px;padding:8px 0;' +
+      'background:#6da7cc;color:#fff;border:none;border-radius:8px;' +
+      'font-size:13px;font-weight:600;cursor:pointer;' +
       'font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
       'box-shadow:0 1px 4px rgba(43,66,87,.25);';
     btn.innerHTML =
@@ -185,33 +209,29 @@
 
     btn.addEventListener('mouseenter', () => { btn.style.backgroundColor = '#345e7d'; });
     btn.addEventListener('mouseleave', () => { btn.style.backgroundColor = '#6da7cc'; });
+    btn.addEventListener('mousedown', (e) => { LOG('btn mousedown', e.target); });
     btn.addEventListener('click', (e) => {
+      LOG('btn click fired', e.target);
       e.stopPropagation();
       showInlineUI({ title, timeText, eventId, calendarId, anchorBtn: btn });
     });
 
-    // Append to body so button is in root stacking context (avoids dialog transform/overlay blocking clicks)
-    document.body.appendChild(btn);
-
-    // rAF loop: keep button visually pinned to the left of the pencil icon
-    let rafId;
-    function updatePos() {
-      if (!document.contains(anchorEl) || !document.contains(btn)) return;
-      const r = anchorEl.getBoundingClientRect();
-      btn.style.top   = Math.round(r.top + (r.height - 28) / 2) + 'px';
-      btn.style.right = Math.round(window.innerWidth - r.left + 6) + 'px';
-      rafId = requestAnimationFrame(updatePos);
+    // Insert after the organizer row inside the details content area
+    const organizerEl = popup.querySelector('#xDetDlgCal');
+    const organizerRow = organizerEl && organizerEl.closest('.nBzcnc');
+    LOG('organizerEl:', organizerEl, '| organizerRow:', organizerRow);
+    if (organizerRow) {
+      organizerRow.insertAdjacentElement('afterend', btn);
+      LOG('button inserted after organizer row');
+    } else {
+      popup.appendChild(btn);
+      LOG('button appended to popup (fallback)');
     }
-    rafId = requestAnimationFrame(updatePos);
-
-    LOG('button appended to popup dialog, tracking pencil via rAF');
 
     // Clean up when the popup closes
     const watcher = new MutationObserver(() => {
       if (!document.contains(anchorEl)) {
-        cancelAnimationFrame(rafId);
         btn.remove();
-        removeInlineUI();
         watcher.disconnect();
       }
     });

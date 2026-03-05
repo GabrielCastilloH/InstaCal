@@ -1,8 +1,18 @@
 const INSTACAL_BTN_ID = 'instacal-edit-ai-btn';
 const INSTACAL_UI_ID  = 'instacal-inline-ui';
+const LOG = (...args: unknown[]) => console.log('[InstaCal]', ...args);
+
+LOG('content script loaded on', location.href);
+
+let _outsideClickHandler: ((e: MouseEvent) => void) | null = null;
 
 function removeInlineUI() {
+  LOG('removeInlineUI called');
   document.getElementById(INSTACAL_UI_ID)?.remove();
+  if (_outsideClickHandler) {
+    document.removeEventListener('click', _outsideClickHandler, true);
+    _outsideClickHandler = null;
+  }
 }
 
 function showInlineUI({ title, timeText, eventId, calendarId, anchorBtn }: {
@@ -12,6 +22,7 @@ function showInlineUI({ title, timeText, eventId, calendarId, anchorBtn }: {
   calendarId: string;
   anchorBtn: HTMLElement;
 }) {
+  LOG('showInlineUI called', { title, eventId, calendarId });
   removeInlineUI();
 
   const prefill = title
@@ -24,8 +35,9 @@ function showInlineUI({ title, timeText, eventId, calendarId, anchorBtn }: {
   ui.id = INSTACAL_UI_ID;
   ui.style.cssText =
     'position:fixed;z-index:2147483647;' +
-    'top:' + (rect.bottom + 8) + 'px;' +
-    'left:' + Math.max(8, rect.left - 240) + 'px;' +
+    'top:' + (rect.top - 8) + 'px;' +
+    'transform:translateY(-100%);' +
+    'left:' + (rect.right + 12) + 'px;' +
     'width:320px;' +
     'background:#FCFDFE;border:1.5px solid #6da7cc;border-radius:12px;' +
     'box-shadow:0 8px 32px rgba(43,66,87,.18);' +
@@ -41,8 +53,6 @@ function showInlineUI({ title, timeText, eventId, calendarId, anchorBtn }: {
         '</svg>' +
         '<span style="font-size:13px;font-weight:600;color:#2b4257;">Edit with AI</span>' +
       '</div>' +
-      '<button id="instacal-close" style="background:none;border:none;cursor:pointer;' +
-      'color:#88a9c3;font-size:18px;line-height:1;padding:0 2px;">\u00d7</button>' +
     '</div>' +
     '<div style="padding:10px 14px 0;">' +
       '<textarea id="instacal-input" rows="2" placeholder="Describe your changes\u2026" ' +
@@ -62,7 +72,10 @@ function showInlineUI({ title, timeText, eventId, calendarId, anchorBtn }: {
       'color:#fff;cursor:pointer;font-family:inherit;">Update Event</button>' +
     '</div>';
 
-  document.body.appendChild(ui);
+  // Append inside the GCal dialog so GCal never sees clicks as "outside"
+  const gcalDialog = anchorBtn.closest('[role="dialog"]') ?? document.getElementById('xDetDlg') ?? document.body;
+  gcalDialog.appendChild(ui);
+  LOG('inline UI appended to', gcalDialog.id || gcalDialog.tagName);
 
   const input     = ui.querySelector<HTMLTextAreaElement>('#instacal-input')!;
   const status    = ui.querySelector<HTMLDivElement>('#instacal-status')!;
@@ -75,8 +88,11 @@ function showInlineUI({ title, timeText, eventId, calendarId, anchorBtn }: {
 
   submitBtn.addEventListener('mouseenter', () => { submitBtn.style.backgroundColor = '#345e7d'; });
   submitBtn.addEventListener('mouseleave', () => { submitBtn.style.backgroundColor = '#6da7cc'; });
-  ui.querySelector('#instacal-close')!.addEventListener('click', removeInlineUI);
-  cancelBtn.addEventListener('click', removeInlineUI);
+  function closeUI() {
+    LOG('closeUI called');
+    removeInlineUI(); // also removes _outsideClickHandler
+  }
+  cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); closeUI(); });
 
   function setStatus(msg: string, color?: string) {
     status.style.display = msg ? 'block' : 'none';
@@ -90,7 +106,7 @@ function showInlineUI({ title, timeText, eventId, calendarId, anchorBtn }: {
     submitBtn.style.opacity = on ? '0.7' : '1';
   }
 
-  submitBtn.addEventListener('click', () => {
+  submitBtn.addEventListener('click', (e) => { e.stopPropagation();
     const text = input.value.trim();
     if (!text) return;
     setLoading(true);
@@ -110,14 +126,15 @@ function showInlineUI({ title, timeText, eventId, calendarId, anchorBtn }: {
     );
   });
 
-  function onOutsideClick(e: MouseEvent) {
+  // Close on click outside the inline UI
+  _outsideClickHandler = function onOutsideClick(e: MouseEvent) {
+    if (ui.contains(e.target as Node)) { LOG('onOutsideClick: inside UI, ignoring'); return; }
     const btn = document.getElementById(INSTACAL_BTN_ID);
-    if (!ui.contains(e.target as Node) && e.target !== btn && !btn?.contains(e.target as Node)) {
-      removeInlineUI();
-      document.removeEventListener('mousedown', onOutsideClick, true);
-    }
-  }
-  document.addEventListener('mousedown', onOutsideClick, true);
+    if (e.target === btn || btn?.contains(e.target as Node)) return;
+    LOG('onOutsideClick: outside UI, closing');
+    removeInlineUI(); // clears _outsideClickHandler too
+  };
+  document.addEventListener('click', _outsideClickHandler, true);
 }
 
 function placeEditBtn(anchorEl: Element) {
@@ -143,11 +160,12 @@ function placeEditBtn(anchorEl: Element) {
   btn.id   = INSTACAL_BTN_ID;
   btn.type = 'button';
   btn.title = 'Edit with AI (InstaCal)';
+  // Bottom-of-popup button — inside dialog DOM so GCal doesn't close on click
   btn.style.cssText =
-    'position:fixed;z-index:2147483647;' +
-    'height:28px;display:inline-flex;align-items:center;gap:4px;padding:0 9px;' +
-    'background:#6da7cc;color:#fff;border:none;border-radius:7px;' +
-    'font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;' +
+    'display:flex;align-items:center;justify-content:center;gap:6px;' +
+    'width:calc(100% - 32px);margin:8px 16px 12px;padding:8px 0;' +
+    'background:#6da7cc;color:#fff;border:none;border-radius:8px;' +
+    'font-size:13px;font-weight:600;cursor:pointer;' +
     'font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
     'box-shadow:0 1px 4px rgba(43,66,87,.25);';
   btn.innerHTML =
@@ -157,28 +175,28 @@ function placeEditBtn(anchorEl: Element) {
 
   btn.addEventListener('mouseenter', () => { btn.style.backgroundColor = '#345e7d'; });
   btn.addEventListener('mouseleave', () => { btn.style.backgroundColor = '#6da7cc'; });
+  btn.addEventListener('mousedown', (e) => { LOG('btn mousedown', e.target); });
   btn.addEventListener('click', (e) => {
+    LOG('btn click fired');
     e.stopPropagation();
     showInlineUI({ title, timeText, eventId, calendarId, anchorBtn: btn });
   });
 
-  popup.appendChild(btn);
-
-  let rafId: number;
-  function updatePos() {
-    if (!document.contains(anchorEl) || !document.contains(btn)) return;
-    const r = anchorEl.getBoundingClientRect();
-    btn.style.top   = Math.round(r.top + (r.height - 28) / 2) + 'px';
-    btn.style.right = Math.round(window.innerWidth - r.left + 6) + 'px';
-    rafId = requestAnimationFrame(updatePos);
+  // Insert after the organizer row inside the details content area
+  const organizerEl = popup.querySelector('#xDetDlgCal');
+  const organizerRow = organizerEl?.closest('.nBzcnc');
+  LOG('placeEditBtn — organizerEl:', organizerEl, '| organizerRow:', organizerRow);
+  if (organizerRow) {
+    organizerRow.insertAdjacentElement('afterend', btn);
+    LOG('button inserted after organizer row');
+  } else {
+    popup.appendChild(btn);
+    LOG('button appended to popup (fallback)');
   }
-  rafId = requestAnimationFrame(updatePos);
 
   const watcher = new MutationObserver(() => {
     if (!document.contains(anchorEl)) {
-      cancelAnimationFrame(rafId);
       btn.remove();
-      removeInlineUI();
       watcher.disconnect();
     }
   });
@@ -196,4 +214,5 @@ new MutationObserver((mutations) => {
   for (const m of mutations) if (m.addedNodes.length) { scanAndInject(); return; }
 }).observe(document.body, { childList: true, subtree: true });
 
+LOG('MutationObserver attached');
 scanAndInject();

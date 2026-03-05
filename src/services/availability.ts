@@ -127,7 +127,7 @@ export async function fetchAvailability(
   )
 
   const tzAbbr = getTzAbbr()
-  const numDays = Math.round((timeMax.getTime() - timeMin.getTime()) / (24 * 60 * 60 * 1000)) + 1
+  const numDays = Math.round((timeMax.getTime() - timeMin.getTime()) / (24 * 60 * 60 * 1000))
   const lines: string[] = []
 
   for (let i = 0; i < numDays; i++) {
