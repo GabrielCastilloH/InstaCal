@@ -7,6 +7,17 @@
 
   LOG('content script loaded on', location.href);
 
+  function buildCalendarEditUrl(eventId, calendarId, event) {
+    const token = btoa(eventId + ' ' + calendarId).replace(/=+$/, '');
+    const url = new URL('https://calendar.google.com/calendar/r/eventedit/' + token);
+    const fmt = (iso) => iso.slice(0, 19).replace(/-/g, '').replace(/:/g, '');
+    url.searchParams.set('text', event.title);
+    url.searchParams.set('dates', fmt(event.start) + '/' + fmt(event.end));
+    if (event.location) url.searchParams.set('location', event.location);
+    if (event.description) url.searchParams.set('details', event.description);
+    return url.toString();
+  }
+
   // ── Inline edit UI ────────────────────────────────────────────────────────
 
   function removeInlineUI() {
@@ -103,8 +114,17 @@
           setLoading(false);
           if (chrome.runtime.lastError) { setStatus('Extension error. Try again.', '#c0392b'); return; }
           if (resp && resp.success) {
-            setStatus('\u2713 Event updated!', '#345e7d');
-            setTimeout(removeInlineUI, 1800);
+            if (resp.autoSaved) {
+              setStatus('\u2713 Event updated!', '#345e7d');
+              setTimeout(() => {
+                removeInlineUI();
+                location.reload();
+              }, 400);
+            } else {
+              removeInlineUI();
+              const url = buildCalendarEditUrl(eventId, calendarId || 'primary', resp.event);
+              window.location.href = url;
+            }
           } else {
             setStatus(resp?.error || 'Something went wrong.', '#c0392b');
           }
@@ -125,9 +145,9 @@
   // ── Button: inside popup DOM (no dismiss) + position:fixed (always visible) ─
 
   function placeEditBtn(anchorEl) {
-    // Find the popup dialog to append into (keeps clicks inside popup so GCal won't dismiss)
+    // Find the popup dialog for context extraction
     const popup = anchorEl.closest('[role="dialog"]') || anchorEl.closest('[data-eventid]');
-    if (!popup || popup.querySelector('#' + INSTACAL_BTN_ID)) return;
+    if (!popup || document.getElementById(INSTACAL_BTN_ID)) return;
 
     // Extract event context
     const heading  = popup.querySelector('[role="heading"]') || popup.querySelector('h1,h2');
@@ -170,8 +190,8 @@
       showInlineUI({ title, timeText, eventId, calendarId, anchorBtn: btn });
     });
 
-    // Append to the popup element — click target is inside the popup's DOM tree
-    popup.appendChild(btn);
+    // Append to body so button is in root stacking context (avoids dialog transform/overlay blocking clicks)
+    document.body.appendChild(btn);
 
     // rAF loop: keep button visually pinned to the left of the pencil icon
     let rafId;
