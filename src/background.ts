@@ -228,11 +228,48 @@ async function handleEditEventWithAI(message: { text: string; eventId: string; c
     const tokens = await getTokens();
     if (!tokens) throw new Error('Not signed in to InstaCal');
 
-    const prefsResult = await getFromStorage([PREF_KEY]);
-    const prefs = { ...DEFAULT_PREFS, ...prefsResult[PREF_KEY] };
+    const calId = message.calendarId || 'primary';
 
-    const event = await parseEvent(message.text, tokens.firebaseToken, prefs, tokens.backendUrl);
+    // Step 1: Fetch existing event
+    const getUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(message.eventId)}`;
+    const getResp = await fetch(getUrl, {
+        headers: { 'Authorization': `Bearer ${tokens.calendarToken}` },
+    });
+    if (!getResp.ok) {
+        const body = await getResp.text();
+        throw new Error(`Failed to fetch event: ${getResp.status}: ${body}`);
+    }
+    const gcalEvent = await getResp.json();
 
+    const existingEvent = {
+        title: gcalEvent.summary ?? '',
+        start: gcalEvent.start?.dateTime ?? gcalEvent.start?.date ?? '',
+        end: gcalEvent.end?.dateTime ?? gcalEvent.end?.date ?? '',
+        location: gcalEvent.location ?? null,
+        description: gcalEvent.description ?? null,
+    };
+
+    // Step 2: Call AI edit endpoint
+    const editResp = await fetch(`${tokens.backendUrl}/edit-event`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokens.firebaseToken}`,
+        },
+        body: JSON.stringify({
+            instruction: message.text,
+            existingEvent,
+            now: new Date().toISOString(),
+        }),
+    });
+    if (!editResp.ok) {
+        let errMsg = `Server error: ${editResp.status}`;
+        try { const b = await editResp.json(); if (b.error) errMsg = b.error; } catch {}
+        throw new Error(errMsg);
+    }
+    const event = await editResp.json();
+
+    // Step 3: PATCH the calendar event
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const patchBody = {
         summary: event.title,
@@ -241,7 +278,6 @@ async function handleEditEventWithAI(message: { text: string; eventId: string; c
         ...(event.location != null && { location: event.location }),
         ...(event.description != null && { description: event.description }),
     };
-    const calId = message.calendarId || 'primary';
     const patchUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(message.eventId)}`;
     const patchResp = await fetch(patchUrl, {
         method: 'PATCH',
