@@ -222,18 +222,6 @@ function setBadge(text: string, color: string): void {
     chrome.action.setBadgeBackgroundColor({ color });
 }
 
-// --- Popup helper ---
-
-function openPopupWithText(text: string) {
-    chrome.storage.local.set({ instacal_context_text: text });
-    chrome.windows.create({
-        url: chrome.runtime.getURL('index.html'),
-        type: 'popup',
-        width: 380,
-        height: 340,
-    });
-}
-
 // --- AI edit message handler ---
 
 async function handleEditEventWithAI(message: { text: string; eventId: string; calendarId: string }) {
@@ -271,12 +259,6 @@ async function handleEditEventWithAI(message: { text: string; eventId: string; c
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.action === 'openEditWithAI') {
-        chrome.storage.local.set({ instacal_edit_context: message.editContext ?? null });
-        openPopupWithText(message.text || '');
-        return false;
-    }
-
     if (message.action === 'editEventWithAI') {
         handleEditEventWithAI(message).then(sendResponse).catch((err: Error) => {
             sendResponse({ success: false, error: err.message || 'Unknown error' });
