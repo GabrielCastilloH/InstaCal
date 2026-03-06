@@ -6,16 +6,41 @@ export type ParsedEvent = {
   end: string
   location: string | null
   description: string | null
+  recurrence: string | null
+  isTask: boolean
+  attendees?: Array<{ email: string; name: string }>
+  unknownAttendees?: string[]
+}
+
+export function isAllDayEvent(event: ParsedEvent): boolean {
+  const startDate = event.start.slice(0, 10)
+  const endDate = event.end.slice(0, 10)
+  const startTime = event.start.slice(11, 19)
+  const endTime = event.end.slice(11, 19)
+  return startDate === endDate && startTime === '00:00:00' && endTime === '23:59:59'
 }
 
 export type ParseDefaults = {
   smartDefaults: boolean
+  tasksAsAllDayEvents: boolean
   defaultDuration: number
   defaultStartTime: string
   defaultLocation: string
 }
 
-export async function parseEvent(text: string, idToken: string, defaults?: ParseDefaults): Promise<ParsedEvent> {
+export type PersonContact = {
+  firstName: string
+  lastName: string
+  email: string
+}
+
+export async function parseEvent(
+  text: string,
+  idToken: string,
+  defaults?: ParseDefaults,
+  people?: PersonContact[],
+  userName?: string,
+): Promise<ParsedEvent> {
   const response = await fetch(`${BACKEND_URL}/parse`, {
     method: 'POST',
     headers: {
@@ -26,6 +51,8 @@ export async function parseEvent(text: string, idToken: string, defaults?: Parse
       text,
       now: new Date().toISOString(),
       defaults,
+      people,
+      ...(userName ? { userName } : {}),
     }),
   })
 

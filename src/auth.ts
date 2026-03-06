@@ -2,7 +2,7 @@
 // window is open (unlike the extension popup which closes on focus loss).
 
 (async function () {
-  const statusEl = document.getElementById('status');
+  const statusEl = document.getElementById('status') as HTMLElement;
 
   try {
     const params = new URLSearchParams(window.location.search);
@@ -15,6 +15,7 @@
       'email',
       'profile',
       'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/calendar.freebusy',
     ];
 
     const authUrl = new URL('https://accounts.google.com/o/oauth2/auth');
@@ -23,7 +24,7 @@
     authUrl.searchParams.set('redirect_uri', redirectUrl);
     authUrl.searchParams.set('scope', scopes.join(' '));
 
-    const responseUrl = await new Promise(function (resolve, reject) {
+    const responseUrl = await new Promise<string>(function (resolve, reject) {
       chrome.identity.launchWebAuthFlow(
         { url: authUrl.toString(), interactive: true },
         function (redirectResponse) {
@@ -40,7 +41,7 @@
     const accessToken = hashParams.get('access_token');
     if (!accessToken) throw new Error('No access token in response');
 
-    var expiresIn = parseInt(hashParams.get('expires_in') || '3600', 10);
+    const expiresIn = parseInt(hashParams.get('expires_in') || '3600', 10);
 
     // Store the token and expiry for the popup to pick up
     await chrome.storage.local.set({
@@ -51,7 +52,7 @@
     window.close();
 
   } catch (err) {
-    statusEl.innerHTML = '<span class="err">Sign-in failed: ' + err.message + '</span>' +
+    statusEl.innerHTML = '<span class="err">Sign-in failed: ' + (err as Error).message + '</span>' +
       '<div class="sub">Close this tab and try again from InstaCal.</div>';
   }
 })();

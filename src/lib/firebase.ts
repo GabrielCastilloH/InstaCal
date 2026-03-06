@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { initializeAuth, indexedDBLocalPersistence } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -19,4 +20,6 @@ export const app = initializeApp(firebaseConfig)
 export const auth = initializeAuth(app, {
   persistence: indexedDBLocalPersistence,
 })
+
+export const db = getFirestore(app)
 

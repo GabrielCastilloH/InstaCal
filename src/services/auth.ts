@@ -1,20 +1,32 @@
 import { auth } from '../lib/firebase'
+import { FIREBASE_TOKEN_EXPIRY_MS, TOKEN_EXPIRY_BUFFER_MS } from '../constants'
 
 const GOOGLE_CALENDAR_TOKEN_KEY = 'instacal_google_calendar_token'
 const GOOGLE_CALENDAR_TOKEN_EXPIRY_KEY = 'instacal_google_calendar_token_expiry'
+const FIREBASE_TOKEN_KEY = 'instacal_firebase_id_token'
+const FIREBASE_TOKEN_EXPIRY_KEY = 'instacal_firebase_id_token_expiry'
+export const FIREBASE_REFRESH_TOKEN_KEY = 'instacal_firebase_refresh_token'
 
 const OAUTH_SCOPES = [
   'openid',
   'email',
   'profile',
   'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.freebusy',
 ]
 
 export async function getFirebaseIdToken(): Promise<string | null> {
   const user = auth.currentUser
   if (!user) return null
   try {
-    return await user.getIdToken()
+    const token = await user.getIdToken()
+    // Cache for background.js (expires ~55 min, before Firebase's 1-hour TTL)
+    chrome.storage.local.set({
+      [FIREBASE_TOKEN_KEY]: token,
+      [FIREBASE_TOKEN_EXPIRY_KEY]: Date.now() + FIREBASE_TOKEN_EXPIRY_MS,
+      [FIREBASE_REFRESH_TOKEN_KEY]: user.refreshToken,
+    })
+    return token
   } catch {
     return null
   }
@@ -75,7 +87,7 @@ export async function getGoogleCalendarToken(): Promise<string | null> {
         }
 
         // Return the token if it's still valid with a 5-minute buffer
-        if (expiry && Date.now() < expiry - 5 * 60 * 1000) {
+        if (expiry && Date.now() < expiry - TOKEN_EXPIRY_BUFFER_MS) {
           resolve(token)
           return
         }

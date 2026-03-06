@@ -16,21 +16,30 @@
       "48": "icons/logo-48.png"
     }
   },
-  "permissions": ["storage", "identity", "tabs"],
+  "permissions": ["storage", "identity", "tabs", "contextMenus", "scripting"],
+  "content_scripts": [
+    {
+      "matches": ["https://calendar.google.com/*"],
+      "js": ["content.js", "content-ui.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "host_permissions": [
+    "https://calendar.google.com/*",
     "https://www.googleapis.com/*",
     "https://us-central1-instacal-app.cloudfunctions.net/*",
     "https://instacal-app.firebaseapp.com/*",
     "https://*.firebaseapp.com/*",
+    "https://identitytoolkit.googleapis.com/*",
     "https://securetoken.googleapis.com/*",
     "https://www.gstatic.com/*",
-    "https://apis.google.com/*",
-    "http://localhost:5001/*"
+    "https://apis.google.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   }
 }

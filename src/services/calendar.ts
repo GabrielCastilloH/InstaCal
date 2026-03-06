@@ -1,19 +1,48 @@
 import type { ParsedEvent } from './parseEvent'
+import { isAllDayEvent } from './parseEvent'
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
 
-export async function createCalendarEvent(token: string, event: ParsedEvent): Promise<unknown> {
+export async function createCalendarEvent(
+  token: string,
+  event: ParsedEvent,
+  attendees?: Array<{ email: string; name: string }>,
+  notifyAttendees = true
+): Promise<unknown> {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const allDay = isAllDayEvent(event)
+  const attendeeList = attendees ?? []
 
-  const body = {
-    summary: event.title,
-    start: { dateTime: event.start, timeZone },
-    end: { dateTime: event.end, timeZone },
-    ...(event.location != null && { location: event.location }),
-    ...(event.description != null && { description: event.description }),
-  }
+  const body = allDay
+    ? {
+        summary: event.title,
+        start: { date: event.start.slice(0, 10) },
+        end: {
+          date: (() => {
+            const d = new Date(event.end.slice(0, 10))
+            d.setDate(d.getDate() + 1)
+            return d.toISOString().slice(0, 10)
+          })(),
+        },
+        ...(event.location != null && { location: event.location }),
+        ...(event.description != null && { description: event.description }),
+        ...(event.recurrence != null && { recurrence: [`RRULE:${event.recurrence}`] }),
+        ...(attendeeList.length > 0 && { attendees: attendeeList.map((a) => ({ email: a.email, displayName: a.name })) }),
+      }
+    : {
+        summary: event.title,
+        start: { dateTime: event.start, timeZone },
+        end: { dateTime: event.end, timeZone },
+        ...(event.location != null && { location: event.location }),
+        ...(event.description != null && { description: event.description }),
+        ...(event.recurrence != null && { recurrence: [`RRULE:${event.recurrence}`] }),
+        ...(attendeeList.length > 0 && { attendees: attendeeList.map((a) => ({ email: a.email, displayName: a.name })) }),
+      }
 
-  const response = await fetch(CALENDAR_API, {
+  const sendUpdates = attendeeList.length > 0 ? (notifyAttendees ? 'all' : 'none') : 'none'
+  const url = `${CALENDAR_API}?sendUpdates=${sendUpdates}`
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -29,3 +58,4 @@ export async function createCalendarEvent(token: string, event: ParsedEvent): Pr
 
   return response.json()
 }
+
