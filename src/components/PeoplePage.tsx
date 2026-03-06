@@ -3,15 +3,17 @@ import PageHeader from './PageHeader'
 import './PeoplePage.css'
 import { MAX_PEOPLE } from '../constants'
 import { type Person, loadPeople, savePeople } from '../utils/people'
+import { savePeopleToFirestore } from '../services/firestorePeople'
 
 export type { Person }
 export { loadPeople, savePeople }
 
 interface PeoplePageProps {
   onBack: () => void
+  uid: string
 }
 
-export default function PeoplePage({ onBack }: PeoplePageProps) {
+export default function PeoplePage({ onBack, uid }: PeoplePageProps) {
   const [people, setPeople] = useState<Person[]>([])
   const [showForm, setShowForm] = useState(false)
   const [firstName, setFirstName] = useState('')
@@ -38,6 +40,7 @@ export default function PeoplePage({ onBack }: PeoplePageProps) {
     const updated = [...people, newPerson]
     setPeople(updated)
     await savePeople(updated)
+    savePeopleToFirestore(uid, updated).catch(() => {})
     setFirstName('')
     setLastName('')
     setEmail('')
@@ -48,6 +51,7 @@ export default function PeoplePage({ onBack }: PeoplePageProps) {
     const updated = people.filter((p) => p.id !== id)
     setPeople(updated)
     await savePeople(updated)
+    savePeopleToFirestore(uid, updated).catch(() => {})
   }
 
   const backButton = (

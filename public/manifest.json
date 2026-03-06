@@ -33,8 +33,7 @@
     "https://identitytoolkit.googleapis.com/*",
     "https://securetoken.googleapis.com/*",
     "https://www.gstatic.com/*",
-    "https://apis.google.com/*",
-    "http://localhost:5001/*"
+    "https://apis.google.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

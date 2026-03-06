@@ -156,7 +156,7 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
         eventId: resolvedEventId,
         calendarId: resolvedCalId,
         resolvedAttendees: known = [],
-        unknownAttendees: unknown = [],
+        unknownAttendees: unknownNames = [],
         existingGCalAttendees = [],
       } = result as {
         event: Record<string, unknown>;
@@ -174,10 +174,10 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
         existingAttendees: existingGCalAttendees,
       };
 
-      if (unknown.length > 0) {
+      if (unknownNames.length > 0) {
         setPendingPatch(patch);
         setResolvedAttendees([...known]);
-        setUnknownQueue([...unknown]);
+        setUnknownQueue([...unknownNames]);
         setFlowState('idle');
       } else {
         await applyPatch(patch, [...known]);

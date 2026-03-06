@@ -15,6 +15,7 @@ import SignIn from "./components/SignIn";
 import { parseEvent, isAllDayEvent, type ParsedEvent } from "./services/parseEvent";
 import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
+import { syncPeopleOnInit, savePeopleToFirestore } from "./services/firestorePeople";
 import { fetchAvailability } from "./services/availability";
 import DateRangePicker from "./components/DateRangePicker";
 import "./App.css";
@@ -100,6 +101,11 @@ function App() {
           if (!cancelled) {
             setUser(result.user);
             setAuthLoading(false);
+
+            // Merge local + Firestore people lists and sync both ways
+            syncPeopleOnInit(result.user.uid).then((merged) => {
+              if (!cancelled && merged.length > 0) setPeople(merged);
+            }).catch(() => {});
 
             // Persist display name to prefs on first sign-in (user can override in Preferences)
             const displayName = result.user.displayName;
@@ -276,6 +282,7 @@ function App() {
       const updatedPeople = upsertPerson(people, name, email);
       setPeople(updatedPeople);
       await savePeople(updatedPeople);
+      if (user) savePeopleToFirestore(user.uid, updatedPeople).catch(() => {});
     }
 
     const newQueue = unknownQueue.slice(1);
@@ -328,7 +335,7 @@ function App() {
     return <PreferencesPage onBack={() => setSettingsPage("settings")} />;
   }
   if (user && settingsPage === "people") {
-    return <PeoplePage onBack={() => setSettingsPage("settings")} />;
+    return <PeoplePage onBack={() => setSettingsPage("settings")} uid={user.uid} />;
   }
   if (user && settingsPage === "coffee") {
     return <CoffeePage onBack={() => setSettingsPage("settings")} />;
