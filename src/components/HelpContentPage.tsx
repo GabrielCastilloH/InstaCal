@@ -56,7 +56,7 @@ export default function HelpContentPage({ onBack }: HelpContentPageProps) {
         </div>
         <div className="help-step">
           <span className="step-num">3</span>
-          <span className="step-text">Your free slots are copied to your clipboard — ready to paste anywhere.</span>
+          <span className="step-text">Your free slots are copied to your clipboard, ready to paste anywhere.</span>
         </div>
       </div>
 
@@ -74,7 +74,7 @@ export default function HelpContentPage({ onBack }: HelpContentPageProps) {
         </div>
         <div className="help-step">
           <span className="step-num">3</span>
-          <span className="step-text">InstaCal opens with the details pre-filled — just review and add.</span>
+          <span className="step-text">InstaCal opens with the details pre-filled, ready to review and add.</span>
         </div>
       </div>
     </div>

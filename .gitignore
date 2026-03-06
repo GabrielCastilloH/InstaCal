@@ -29,3 +29,5 @@ server/.env
 .env.local
 functions/.env.local
 functions/lib
+
+/tmp

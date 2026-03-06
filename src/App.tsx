@@ -3,16 +3,19 @@ import { signInWithCredential, GoogleAuthProvider, type User } from "firebase/au
 import { auth } from "./lib/firebase";
 import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
-import PreferencesPage, { DEFAULT_PREFS, type Prefs } from "./components/PreferencesPage";
+import PreferencesPage from "./components/PreferencesPage";
+import { DEFAULT_PREFS, type Prefs } from "./services/prefs";
 import CoffeePage from "./components/CoffeePage";
-import PeoplePage, { savePeople, loadPeople, type Person } from "./components/PeoplePage";
-import { MAX_PEOPLE, PREF_KEY, FIREBASE_TOKEN_EXPIRY_MS } from "./constants";
+import PeoplePage from "./components/PeoplePage";
+import { loadPeople, savePeople, upsertPerson, type Person } from "./utils/people";
+import { PREF_KEY, FIREBASE_TOKEN_EXPIRY_MS } from "./constants";
 import UnknownPersonModal from "./components/UnknownPersonModal";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
 import { parseEvent, isAllDayEvent, type ParsedEvent } from "./services/parseEvent";
 import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
+import { syncPeopleOnInit, savePeopleToFirestore } from "./services/firestorePeople";
 import { fetchAvailability } from "./services/availability";
 import DateRangePicker from "./components/DateRangePicker";
 import "./App.css";
@@ -98,6 +101,36 @@ function App() {
           if (!cancelled) {
             setUser(result.user);
             setAuthLoading(false);
+
+            // Merge local + Firestore people lists and sync both ways
+            syncPeopleOnInit(result.user.uid).then((merged) => {
+              if (!cancelled && merged.length > 0) setPeople(merged);
+            }).catch(() => {});
+
+            // Persist display name to prefs on first sign-in (user can override in Preferences)
+            const displayName = result.user.displayName;
+            if (displayName) {
+              chrome.storage.local.get([PREF_KEY], (r) => {
+                const existing = (r[PREF_KEY] as Partial<Prefs>) ?? {};
+                if (!existing.userName) {
+                  const merged = { ...DEFAULT_PREFS, ...existing, userName: displayName };
+                  chrome.storage.local.set({ [PREF_KEY]: merged });
+                  if (!cancelled) setPrefs(merged);
+                }
+              });
+            }
+
+            // Pre-fill textarea if opened via context menu
+            const stored = await new Promise<{ [key: string]: unknown }>((resolve) =>
+              chrome.storage.local.get(['instacal_context_text'], (items) => resolve(items))
+            );
+            const contextText = stored['instacal_context_text'] as string | undefined;
+            chrome.storage.local.remove(['instacal_context_text']);
+            if (contextText && inputRef.current) {
+              inputRef.current.value = contextText;
+              inputRef.current.focus();
+              inputRef.current.selectionStart = inputRef.current.selectionEnd = contextText.length;
+            }
           }
           return;
         } catch {
@@ -214,7 +247,7 @@ function App() {
         defaultDuration: prefs.defaultDuration,
         defaultStartTime: prefs.defaultStartTime,
         defaultLocation: prefs.defaultLocation,
-      }, peopleContacts);
+      }, peopleContacts, prefs.userName || undefined);
 
       if (event.unknownAttendees && event.unknownAttendees.length > 0) {
         // Kick off interactive resolution queue
@@ -242,42 +275,14 @@ function App() {
 
   async function handleModalAdd(email: string, saveToDefaults: boolean) {
     const name = unknownQueue[0];
-
     const newResolved = [...resolvedAttendees, { email, name }];
     setResolvedAttendees(newResolved);
 
     if (saveToDefaults) {
-      const [firstName, ...rest] = name.split(' ');
-      const lastName = rest.join(' ');
-      const newPerson: Person = {
-        id: crypto.randomUUID(),
-        firstName: firstName ?? name,
-        lastName,
-        email,
-        lastUsed: Date.now(),
-      };
-
-      let updatedPeople = [...people];
-      if (updatedPeople.length >= MAX_PEOPLE) {
-        const lruIndex = updatedPeople.reduce(
-          (minIdx, p, idx) => p.lastUsed < updatedPeople[minIdx].lastUsed ? idx :           minIdx,
-          0
-        );
-        updatedPeople.splice(lruIndex, 1);
-      }
-      updatedPeople.push(newPerson);
+      const updatedPeople = upsertPerson(people, name, email);
       setPeople(updatedPeople);
       await savePeople(updatedPeople);
-    }
-
-    // Update lastUsed for any existing person with this email
-    const existingIdx = people.findIndex((p) => p.email === email);
-    if (existingIdx !== -1) {
-      const updatedPeople = people.map((p, i) =>
-        i === existingIdx ? { ...p, lastUsed: Date.now() } : p
-      );
-      setPeople(updatedPeople);
-      await savePeople(updatedPeople);
+      if (user) savePeopleToFirestore(user.uid, updatedPeople).catch(() => {});
     }
 
     const newQueue = unknownQueue.slice(1);
@@ -330,7 +335,7 @@ function App() {
     return <PreferencesPage onBack={() => setSettingsPage("settings")} />;
   }
   if (user && settingsPage === "people") {
-    return <PeoplePage onBack={() => setSettingsPage("settings")} />;
+    return <PeoplePage onBack={() => setSettingsPage("settings")} uid={user.uid} />;
   }
   if (user && settingsPage === "coffee") {
     return <CoffeePage onBack={() => setSettingsPage("settings")} />;
@@ -381,7 +386,7 @@ function App() {
           disabled={status === "loading" || authLoading}
           onClick={handleAddEvent}
         >
-          {status === "loading" ? "Adding…" : "Add Event"}
+          {status === "loading" ? "Parsing…" : "Add Event"}
         </button>
         <button
           className="export-btn"

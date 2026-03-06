@@ -12,6 +12,14 @@ export type ParsedEvent = {
   unknownAttendees?: string[]
 }
 
+export type ExistingEventContext = {
+  title: string
+  start: string       // ISO-8601 local datetime
+  end: string
+  location: string | null
+  description: string | null
+}
+
 const SYSTEM_PROMPT_SMART = `You are a calendar parsing assistant.
 The user will describe a calendar event or task in natural language.
 The current date and time is: {NOW_ISO}
@@ -117,6 +125,37 @@ Rules:
 - For "start", use the first (nearest future) occurrence of the recurring day/time.
 - Output ONLY the JSON object. Any other text will cause an error.`
 
+const SYSTEM_PROMPT_EDIT = `You are a calendar editing assistant.
+The current date and time is: {NOW_ISO}
+
+The user wants to modify an existing calendar event.
+
+Existing event:
+  Title:       {EXISTING_TITLE}
+  Start:       {EXISTING_START}
+  End:         {EXISTING_END}
+  Location:    {EXISTING_LOCATION}
+  Description: {EXISTING_DESCRIPTION}
+
+Apply the user's instruction to the event above and return ONLY a valid JSON object — no markdown, no explanation — with exactly these fields:
+  "title":       string
+  "start":       string   — ISO-8601 local datetime, no timezone offset
+  "end":         string   — ISO-8601 local datetime, no timezone offset
+  "location":    string | null
+  "description": string | null
+  "recurrence":  string | null
+  "isTask":      boolean
+
+Rules:
+- Preserve every field the user did NOT mention.
+- Resolve relative time expressions ("1 hour later", "push back 30 min") relative to the EXISTING event's start/end, not the current time.
+- If the user says "make it 2 hours long", keep start and set end = start + 2h.
+- If the user says "rename to X", only change title; keep everything else.
+- If location is not mentioned, preserve the existing location exactly (including null).
+- "recurrence" stays null unless the user explicitly mentions recurrence.
+- "isTask" stays false unless the user explicitly changes it.
+- Output ONLY the JSON object. Any other text will cause an error.`
+
 function isValidParsedEvent(obj: unknown): obj is ParsedEvent {
   if (typeof obj !== 'object' || obj === null) return false
   const e = obj as Record<string, unknown>
@@ -145,6 +184,58 @@ export type PersonContact = {
   firstName: string
   lastName: string
   email: string
+}
+
+export async function editEventWithAI(
+  input: { instruction: string; existingEvent: ExistingEventContext; nowISO: string; people?: PersonContact[] },
+  apiKey: string
+): Promise<ParsedEvent> {
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const { instruction, existingEvent, nowISO, people } = input
+
+  let systemPrompt = SYSTEM_PROMPT_EDIT
+    .replace('{NOW_ISO}', nowISO)
+    .replace('{EXISTING_TITLE}', existingEvent.title)
+    .replace('{EXISTING_START}', existingEvent.start)
+    .replace('{EXISTING_END}', existingEvent.end)
+    .replace('{EXISTING_LOCATION}', existingEvent.location ?? 'null')
+    .replace('{EXISTING_DESCRIPTION}', existingEvent.description ?? 'null')
+
+  // Always inject the attendees block so the AI can detect guest additions even with an empty people list
+  const knownPeopleSection = (people && people.length > 0)
+    ? `Known people (resolve their names to emails when mentioned):\n${people.map((p) => `- ${p.firstName} ${p.lastName}: ${p.email}`).join('\n')}\n`
+    : 'Known people: (none saved yet)\n'
+
+  const attendeesBlock = `
+${knownPeopleSection}
+IMPORTANT — if the user's instruction asks to add, invite, or include a person as a guest/attendee:
+  "attendees":        array of { "email": string, "name": string } — people from Known people who were mentioned; empty array if none
+  "unknownAttendees": array of strings — names to add as guests NOT found in Known people; empty array if none
+
+Only populate these when the instruction explicitly asks to add/invite someone. Do NOT add people just because they appear in the title.
+`
+  systemPrompt = systemPrompt.replace(
+    '- Output ONLY the JSON object. Any other text will cause an error.',
+    `${attendeesBlock}- Output ONLY the JSON object. Any other text will cause an error.`
+  )
+
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash-lite',
+    systemInstruction: systemPrompt,
+    generationConfig: { temperature: 0, responseMimeType: 'application/json' },
+  })
+
+  const result = await model.generateContent(instruction)
+  const raw = result.response.text() ?? ''
+
+  let parsed: unknown
+  try { parsed = JSON.parse(raw) } catch {
+    throw new Error(`Gemini returned invalid JSON. Raw output: ${raw}`)
+  }
+  if (!isValidParsedEvent(parsed)) {
+    throw new Error(`Gemini response missing required fields. Raw output: ${raw}`)
+  }
+  return parsed
 }
 
 export async function parseEventWithAI(

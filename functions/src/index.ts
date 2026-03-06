@@ -7,7 +7,7 @@ import { onRequest } from 'firebase-functions/v2/https'
 import { defineSecret } from 'firebase-functions/params'
 import express, { Request, Response } from 'express'
 import cors from 'cors'
-import { parseEventWithAI, ParsedEvent, PersonContact } from './gemini'
+import { parseEventWithAI, editEventWithAI, ParsedEvent, PersonContact, ExistingEventContext } from './gemini'
 import { MAX_PEOPLE, DAILY_LIMIT } from './constants'
 
 admin.initializeApp()
@@ -90,6 +90,13 @@ interface ParseRequestBody {
   people?: PersonContact[]
 }
 
+interface EditEventRequestBody {
+  instruction?: string
+  existingEvent?: ExistingEventContext
+  now?: string
+  people?: PersonContact[]
+}
+
 app.post(
   '/parse',
   verifyAuth,
@@ -126,6 +133,44 @@ app.post(
       res.json(event)
     } catch (err) {
       res.status(500).json({ error: 'parse failed' })
+    }
+  }
+)
+
+app.post(
+  '/edit-event',
+  verifyAuth,
+  async (req: Request<object, ParsedEvent | { error: string }, EditEventRequestBody>, res: Response) => {
+    const { instruction, existingEvent, now, people } = req.body
+
+    if (!instruction || instruction.trim().length === 0) {
+      res.status(400).json({ error: 'instruction is required' })
+      return
+    }
+    if (!existingEvent || typeof existingEvent.title !== 'string') {
+      res.status(400).json({ error: 'existingEvent is required' })
+      return
+    }
+
+    const uid = res.locals.uid as string
+    try {
+      await checkRateLimit(uid)
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === 'RATE_LIMIT_EXCEEDED') {
+        res.status(429).json({ error: `Daily limit of ${DAILY_LIMIT} reached. Try again tomorrow.` })
+        return
+      }
+      throw err
+    }
+
+    try {
+      const event = await editEventWithAI(
+        { instruction: instruction.trim(), existingEvent, nowISO: now ?? new Date().toISOString(), people },
+        getGeminiApiKey()
+      )
+      res.json(event)
+    } catch {
+      res.status(500).json({ error: 'edit failed' })
     }
   }
 )

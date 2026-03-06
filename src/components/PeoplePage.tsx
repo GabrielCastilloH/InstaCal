@@ -1,36 +1,19 @@
 import { useEffect, useState } from 'react'
 import PageHeader from './PageHeader'
 import './PeoplePage.css'
-import { MAX_PEOPLE, PEOPLE_KEY } from '../constants'
+import { MAX_PEOPLE } from '../constants'
+import { type Person, loadPeople, savePeople } from '../utils/people'
+import { savePeopleToFirestore } from '../services/firestorePeople'
 
-export interface Person {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-  lastUsed: number
-}
-
-export function savePeople(people: Person[]): Promise<void> {
-  const sorted = [...people].sort((a, b) => b.lastUsed - a.lastUsed)
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [PEOPLE_KEY]: sorted }, resolve)
-  })
-}
-
-export function loadPeople(): Promise<Person[]> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get([PEOPLE_KEY], (result) => {
-      resolve((result[PEOPLE_KEY] as Person[] | undefined) ?? [])
-    })
-  })
-}
+export type { Person }
+export { loadPeople, savePeople }
 
 interface PeoplePageProps {
   onBack: () => void
+  uid: string
 }
 
-export default function PeoplePage({ onBack }: PeoplePageProps) {
+export default function PeoplePage({ onBack, uid }: PeoplePageProps) {
   const [people, setPeople] = useState<Person[]>([])
   const [showForm, setShowForm] = useState(false)
   const [firstName, setFirstName] = useState('')
@@ -57,6 +40,7 @@ export default function PeoplePage({ onBack }: PeoplePageProps) {
     const updated = [...people, newPerson]
     setPeople(updated)
     await savePeople(updated)
+    savePeopleToFirestore(uid, updated).catch(() => {})
     setFirstName('')
     setLastName('')
     setEmail('')
@@ -67,6 +51,7 @@ export default function PeoplePage({ onBack }: PeoplePageProps) {
     const updated = people.filter((p) => p.id !== id)
     setPeople(updated)
     await savePeople(updated)
+    savePeopleToFirestore(uid, updated).catch(() => {})
   }
 
   const backButton = (

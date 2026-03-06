@@ -38,7 +38,8 @@ export async function parseEvent(
   text: string,
   idToken: string,
   defaults?: ParseDefaults,
-  people?: PersonContact[]
+  people?: PersonContact[],
+  userName?: string,
 ): Promise<ParsedEvent> {
   const response = await fetch(`${BACKEND_URL}/parse`, {
     method: 'POST',
@@ -51,6 +52,7 @@ export async function parseEvent(
       now: new Date().toISOString(),
       defaults,
       people,
+      ...(userName ? { userName } : {}),
     }),
   })
 
