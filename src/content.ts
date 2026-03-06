@@ -210,13 +210,33 @@ function injectEditButton(eventId: string, calendarId: string) {
   LOG('Edit with AI button injected');
 }
 
+// --- Auth check ---
+
+function checkSignedIn(): Promise<boolean> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(
+      ['instacal_google_calendar_token', 'instacal_google_calendar_token_expiry'],
+      (result) => {
+        const token = result['instacal_google_calendar_token'];
+        const expiry = result['instacal_google_calendar_token_expiry'] as number | undefined;
+        resolve(typeof token === 'string' && (!expiry || Date.now() < expiry));
+      }
+    );
+  });
+}
+
 // --- SPA navigation + DOM watch ---
 
 let currentHref = location.href;
 
-function tryInjectForCurrentUrl() {
+async function tryInjectForCurrentUrl() {
   const eventInfo = getEventFromEditUrl();
   if (!eventInfo) {
+    removeInjected();
+    return;
+  }
+  const signedIn = await checkSignedIn();
+  if (!signedIn) {
     removeInjected();
     return;
   }
@@ -230,9 +250,16 @@ new MutationObserver(() => {
     removeInjected();
   }
   if (getEventFromEditUrl() && !document.getElementById(EDIT_BTN_ID)) {
-    tryInjectForCurrentUrl();
+    void tryInjectForCurrentUrl();
   }
 }).observe(document.body, { childList: true, subtree: true });
 
+// React to sign-in / sign-out without needing a page reload
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && 'instacal_google_calendar_token' in changes) {
+    void tryInjectForCurrentUrl();
+  }
+});
+
 LOG('MutationObserver attached');
-tryInjectForCurrentUrl();
+void tryInjectForCurrentUrl();
