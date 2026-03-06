@@ -12,14 +12,18 @@ function getEventFromEditUrl(): { eventId: string; calendarId: string } | null {
   if (!match) return null;
   const raw = match[1];
   try {
-    const pad     = raw.length % 4;
-    const decoded = atob(pad ? raw + '='.repeat(4 - pad) : raw);
-    const sp      = decoded.indexOf(' ');
-    if (sp > 0) {
-      return { eventId: decoded.slice(0, sp), calendarId: decoded.slice(sp + 1) };
-    }
-    return { eventId: decoded, calendarId: 'primary' };
-  } catch {
+    // Google Calendar uses base64url encoding — convert to standard base64 before decoding
+    const b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64.length % 4;
+    const decoded = atob(pad ? b64 + '='.repeat(4 - pad) : b64);
+    const sp = decoded.indexOf(' ');
+    const result = sp > 0
+      ? { eventId: decoded.slice(0, sp).trim(), calendarId: decoded.slice(sp + 1).trim() }
+      : { eventId: decoded.trim(), calendarId: 'primary' };
+    LOG('getEventFromEditUrl decoded:', result);
+    return result;
+  } catch (e) {
+    LOG('getEventFromEditUrl failed to decode:', e);
     return null;
   }
 }

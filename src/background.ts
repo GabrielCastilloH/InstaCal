@@ -225,21 +225,65 @@ function setBadge(text: string, color: string): void {
 // --- AI edit message handler ---
 
 async function handleEditEventWithAI(message: { text: string; eventId: string; calendarId: string }) {
+    console.log('[InstaCal] handleEditEventWithAI called', { eventId: message.eventId, calendarId: message.calendarId, text: message.text });
+
     const tokens = await getTokens();
     if (!tokens) throw new Error('Not signed in to InstaCal');
+    console.log('[InstaCal] tokens acquired, backendUrl:', tokens.backendUrl);
 
     const calId = message.calendarId || 'primary';
 
     // Step 1: Fetch existing event
-    const getUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(message.eventId)}`;
-    const getResp = await fetch(getUrl, {
-        headers: { 'Authorization': `Bearer ${tokens.calendarToken}` },
-    });
-    if (!getResp.ok) {
-        const body = await getResp.text();
-        throw new Error(`Failed to fetch event: ${getResp.status}: ${body}`);
+    // Try direct fetch first; fall back to iCalUID search and then primary calendar
+    async function fetchEvent(cid: string, eid: string): Promise<Record<string, any> | null> {
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cid)}/events/${encodeURIComponent(eid)}`;
+        console.log('[InstaCal] fetchEvent GET', url);
+        const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${tokens!.calendarToken}` } });
+        console.log('[InstaCal] fetchEvent response', resp.status);
+        if (resp.ok) return resp.json();
+        if (resp.status !== 404) {
+            const body = await resp.text();
+            throw new Error(`Failed to fetch event: ${resp.status}: ${body}`);
+        }
+        return null;
     }
-    const gcalEvent = await getResp.json();
+
+    async function searchByICalUID(cid: string, uid: string): Promise<Record<string, any> | null> {
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cid)}/events?iCalUID=${encodeURIComponent(uid)}&maxResults=1`;
+        console.log('[InstaCal] searchByICalUID GET', url);
+        const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${tokens!.calendarToken}` } });
+        console.log('[InstaCal] searchByICalUID response', resp.status);
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        console.log('[InstaCal] searchByICalUID items count', data.items?.length ?? 0);
+        return data.items?.[0] ?? null;
+    }
+
+    let gcalEvent: Record<string, any> | null = await fetchEvent(calId, message.eventId);
+
+    if (!gcalEvent && calId !== 'primary') {
+        console.log('[InstaCal] fallback: trying primary calendar by event ID');
+        gcalEvent = await fetchEvent('primary', message.eventId);
+        if (gcalEvent) message.calendarId = 'primary';
+    }
+
+    if (!gcalEvent) {
+        console.log('[InstaCal] fallback: trying iCalUID search on', calId);
+        gcalEvent = await searchByICalUID(calId, message.eventId);
+        if (gcalEvent) message.eventId = gcalEvent.id;
+    }
+
+    if (!gcalEvent && calId !== 'primary') {
+        console.log('[InstaCal] fallback: trying iCalUID search on primary');
+        gcalEvent = await searchByICalUID('primary', message.eventId);
+        if (gcalEvent) { message.eventId = gcalEvent.id; message.calendarId = 'primary'; }
+    }
+
+    if (!gcalEvent) {
+        throw new Error('Event not found. Try opening the event in Google Calendar and clicking Edit with AI again.');
+    }
+
+    console.log('[InstaCal] gcalEvent fetched:', JSON.stringify(gcalEvent));
 
     const existingEvent = {
         title: gcalEvent.summary ?? '',
@@ -249,22 +293,24 @@ async function handleEditEventWithAI(message: { text: string; eventId: string; c
         description: gcalEvent.description ?? null,
     };
 
+    console.log('[InstaCal] existingEvent:', JSON.stringify(existingEvent));
+
     // Step 2: Call AI edit endpoint
+    const editUrl = `${tokens.backendUrl}/edit-event`;
+    const editBody = { instruction: message.text, existingEvent, now: new Date().toISOString() };
+    console.log('[InstaCal] POST', editUrl, JSON.stringify(editBody));
+
     const aiController = new AbortController();
     const aiTimeoutId = setTimeout(() => aiController.abort(), 25000);
     let editResp: Response;
     try {
-        editResp = await fetch(`${tokens.backendUrl}/edit-event`, {
+        editResp = await fetch(editUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${tokens.firebaseToken}`,
             },
-            body: JSON.stringify({
-                instruction: message.text,
-                existingEvent,
-                now: new Date().toISOString(),
-            }),
+            body: JSON.stringify(editBody),
             signal: aiController.signal,
         });
     } catch (err) {
@@ -275,12 +321,16 @@ async function handleEditEventWithAI(message: { text: string; eventId: string; c
         throw err;
     }
     clearTimeout(aiTimeoutId);
+    console.log('[InstaCal] edit-event response status:', editResp.status);
     if (!editResp.ok) {
+        const rawBody = await editResp.text();
+        console.log('[InstaCal] edit-event error body:', rawBody);
         let errMsg = `Server error: ${editResp.status}`;
-        try { const b = await editResp.json(); if (b.error) errMsg = b.error; } catch {}
+        try { const b = JSON.parse(rawBody); if (b.error) errMsg = b.error; } catch {}
         throw new Error(errMsg);
     }
     const event = await editResp.json();
+    console.log('[InstaCal] edit-event result:', JSON.stringify(event));
 
     // Step 3: PATCH the calendar event
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -291,7 +341,7 @@ async function handleEditEventWithAI(message: { text: string; eventId: string; c
         ...(event.location != null && { location: event.location }),
         ...(event.description != null && { description: event.description }),
     };
-    const patchUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(message.eventId)}`;
+    const patchUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(message.calendarId || calId)}/events/${encodeURIComponent(message.eventId)}`;
     const patchResp = await fetch(patchUrl, {
         method: 'PATCH',
         headers: {
