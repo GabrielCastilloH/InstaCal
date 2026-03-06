@@ -3,7 +3,8 @@ import { signInWithCredential, GoogleAuthProvider, type User } from "firebase/au
 import { auth } from "./lib/firebase";
 import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
-import PreferencesPage, { DEFAULT_PREFS, type Prefs } from "./components/PreferencesPage";
+import PreferencesPage from "./components/PreferencesPage";
+import { DEFAULT_PREFS, type Prefs } from "./services/prefs";
 import CoffeePage from "./components/CoffeePage";
 import PeoplePage from "./components/PeoplePage";
 import { loadPeople, savePeople, upsertPerson, type Person } from "./utils/people";
@@ -99,6 +100,20 @@ function App() {
           if (!cancelled) {
             setUser(result.user);
             setAuthLoading(false);
+
+            // Persist display name to prefs on first sign-in (user can override in Preferences)
+            const displayName = result.user.displayName;
+            if (displayName) {
+              chrome.storage.local.get([PREF_KEY], (r) => {
+                const existing = (r[PREF_KEY] as Partial<Prefs>) ?? {};
+                if (!existing.userName) {
+                  const merged = { ...DEFAULT_PREFS, ...existing, userName: displayName };
+                  chrome.storage.local.set({ [PREF_KEY]: merged });
+                  if (!cancelled) setPrefs(merged);
+                }
+              });
+            }
+
             // Pre-fill textarea if opened via context menu
             const stored = await new Promise<{ [key: string]: unknown }>((resolve) =>
               chrome.storage.local.get(['instacal_context_text'], (items) => resolve(items))
@@ -226,7 +241,7 @@ function App() {
         defaultDuration: prefs.defaultDuration,
         defaultStartTime: prefs.defaultStartTime,
         defaultLocation: prefs.defaultLocation,
-      }, peopleContacts);
+      }, peopleContacts, prefs.userName || undefined);
 
       if (event.unknownAttendees && event.unknownAttendees.length > 0) {
         // Kick off interactive resolution queue

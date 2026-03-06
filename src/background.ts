@@ -274,9 +274,18 @@ async function handleEditEventWithAI(message: {
     };
 
     // Step 2: Call AI edit endpoint
+    const prefsResult = await getFromStorage([PREF_KEY]);
+    const userName = ((prefsResult[PREF_KEY] as Record<string, unknown> | undefined)?.userName as string | undefined) || '';
+
     const editUrl = `${tokens.backendUrl}/edit-event`;
-    const editBody = { instruction: message.text, existingEvent, now: new Date().toISOString(), people: message.people ?? [] };
-    console.log('[InstaCal] POST', editUrl, 'instruction:', message.text, 'people count:', editBody.people.length);
+    const editBody: Record<string, unknown> = {
+        instruction: message.text,
+        existingEvent,
+        now: new Date().toISOString(),
+        people: message.people ?? [],
+        ...(userName ? { userName } : {}),
+    };
+    console.log('[InstaCal] POST', editUrl, 'instruction:', message.text, 'people count:', (message.people ?? []).length);
 
     const aiController = new AbortController();
     const aiTimeoutId = setTimeout(() => aiController.abort(), 25000);
