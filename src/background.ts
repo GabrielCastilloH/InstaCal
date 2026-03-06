@@ -250,18 +250,31 @@ async function handleEditEventWithAI(message: { text: string; eventId: string; c
     };
 
     // Step 2: Call AI edit endpoint
-    const editResp = await fetch(`${tokens.backendUrl}/edit-event`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${tokens.firebaseToken}`,
-        },
-        body: JSON.stringify({
-            instruction: message.text,
-            existingEvent,
-            now: new Date().toISOString(),
-        }),
-    });
+    const aiController = new AbortController();
+    const aiTimeoutId = setTimeout(() => aiController.abort(), 25000);
+    let editResp: Response;
+    try {
+        editResp = await fetch(`${tokens.backendUrl}/edit-event`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${tokens.firebaseToken}`,
+            },
+            body: JSON.stringify({
+                instruction: message.text,
+                existingEvent,
+                now: new Date().toISOString(),
+            }),
+            signal: aiController.signal,
+        });
+    } catch (err) {
+        clearTimeout(aiTimeoutId);
+        if (err instanceof Error && err.name === 'AbortError') {
+            throw new Error('AI request timed out. Please try again.');
+        }
+        throw err;
+    }
+    clearTimeout(aiTimeoutId);
     if (!editResp.ok) {
         let errMsg = `Server error: ${editResp.status}`;
         try { const b = await editResp.json(); if (b.error) errMsg = b.error; } catch {}

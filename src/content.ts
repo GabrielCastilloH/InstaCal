@@ -146,9 +146,21 @@ function injectPanel(eventId: string, calendarId: string) {
     if (!text) { input.focus(); return; }
     setLoading(true);
     setStatus('');
+
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setLoading(false);
+      setStatus('Request timed out. Please try again.', true);
+    }, 30000);
+
     chrome.runtime.sendMessage(
       { action: 'editEventWithAI', text, eventId, calendarId },
       (resp: { success: boolean; error?: string }) => {
+        clearTimeout(timeoutId);
+        if (settled) return;
+        settled = true;
         setLoading(false);
         if (chrome.runtime.lastError) {
           setStatus('Extension error. Try again.', true);
