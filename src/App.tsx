@@ -116,15 +116,8 @@ function App() {
         }
       }
 
-      // Google token flow failed — check if Firebase SDK still has a persisted session.
-      // Firebase stores auth state in IndexedDB across popup opens, so this fires with
-      // the cached user even without a fresh Google token.
-      const firebaseUser = await new Promise<User | null>((resolve) => {
-        const unsub = auth.onAuthStateChanged((u) => { unsub(); resolve(u); });
-      });
-
       if (!cancelled) {
-        setUser(firebaseUser);
+        setUser(null);
         setAuthLoading(false);
       }
     }
