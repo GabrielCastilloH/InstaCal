@@ -224,67 +224,47 @@ function setBadge(text: string, color: string): void {
 
 // --- AI edit message handler ---
 
-async function handleEditEventWithAI(message: { text: string; eventId: string; calendarId: string }) {
+type GCalAttendee = { email: string; displayName?: string; self?: boolean; responseStatus?: string };
+
+async function handleEditEventWithAI(message: {
+    text: string;
+    eventId: string;
+    calendarId: string;
+    people?: Array<{ firstName: string; lastName: string; email: string }>;
+}) {
     console.log('[InstaCal] handleEditEventWithAI called', { eventId: message.eventId, calendarId: message.calendarId, text: message.text });
 
     const tokens = await getTokens();
     if (!tokens) throw new Error('Not signed in to InstaCal');
-    console.log('[InstaCal] tokens acquired, backendUrl:', tokens.backendUrl);
 
     const calId = message.calendarId || 'primary';
 
-    // Step 1: Fetch existing event
-    // Try direct fetch first; fall back to iCalUID search and then primary calendar
+    // Step 1: Fetch existing event (with fallbacks)
     async function fetchEvent(cid: string, eid: string): Promise<Record<string, any> | null> {
         const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cid)}/events/${encodeURIComponent(eid)}`;
         console.log('[InstaCal] fetchEvent GET', url);
         const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${tokens!.calendarToken}` } });
         console.log('[InstaCal] fetchEvent response', resp.status);
         if (resp.ok) return resp.json();
-        if (resp.status !== 404) {
-            const body = await resp.text();
-            throw new Error(`Failed to fetch event: ${resp.status}: ${body}`);
-        }
+        if (resp.status !== 404) { const body = await resp.text(); throw new Error(`Failed to fetch event: ${resp.status}: ${body}`); }
         return null;
     }
 
     async function searchByICalUID(cid: string, uid: string): Promise<Record<string, any> | null> {
         const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cid)}/events?iCalUID=${encodeURIComponent(uid)}&maxResults=1`;
-        console.log('[InstaCal] searchByICalUID GET', url);
         const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${tokens!.calendarToken}` } });
-        console.log('[InstaCal] searchByICalUID response', resp.status);
         if (!resp.ok) return null;
         const data = await resp.json();
-        console.log('[InstaCal] searchByICalUID items count', data.items?.length ?? 0);
         return data.items?.[0] ?? null;
     }
 
     let gcalEvent: Record<string, any> | null = await fetchEvent(calId, message.eventId);
+    if (!gcalEvent && calId !== 'primary') { gcalEvent = await fetchEvent('primary', message.eventId); if (gcalEvent) message.calendarId = 'primary'; }
+    if (!gcalEvent) { gcalEvent = await searchByICalUID(calId, message.eventId); if (gcalEvent) message.eventId = gcalEvent.id; }
+    if (!gcalEvent && calId !== 'primary') { gcalEvent = await searchByICalUID('primary', message.eventId); if (gcalEvent) { message.eventId = gcalEvent.id; message.calendarId = 'primary'; } }
+    if (!gcalEvent) throw new Error('Event not found. Try opening the event in Google Calendar and clicking Edit with AI again.');
 
-    if (!gcalEvent && calId !== 'primary') {
-        console.log('[InstaCal] fallback: trying primary calendar by event ID');
-        gcalEvent = await fetchEvent('primary', message.eventId);
-        if (gcalEvent) message.calendarId = 'primary';
-    }
-
-    if (!gcalEvent) {
-        console.log('[InstaCal] fallback: trying iCalUID search on', calId);
-        gcalEvent = await searchByICalUID(calId, message.eventId);
-        if (gcalEvent) message.eventId = gcalEvent.id;
-    }
-
-    if (!gcalEvent && calId !== 'primary') {
-        console.log('[InstaCal] fallback: trying iCalUID search on primary');
-        gcalEvent = await searchByICalUID('primary', message.eventId);
-        if (gcalEvent) { message.eventId = gcalEvent.id; message.calendarId = 'primary'; }
-    }
-
-    if (!gcalEvent) {
-        throw new Error('Event not found. Try opening the event in Google Calendar and clicking Edit with AI again.');
-    }
-
-    console.log('[InstaCal] gcalEvent fetched:', JSON.stringify(gcalEvent));
-
+    const existingGCalAttendees: GCalAttendee[] = gcalEvent.attendees ?? [];
     const existingEvent = {
         title: gcalEvent.summary ?? '',
         start: gcalEvent.start?.dateTime ?? gcalEvent.start?.date ?? '',
@@ -293,12 +273,10 @@ async function handleEditEventWithAI(message: { text: string; eventId: string; c
         description: gcalEvent.description ?? null,
     };
 
-    console.log('[InstaCal] existingEvent:', JSON.stringify(existingEvent));
-
     // Step 2: Call AI edit endpoint
     const editUrl = `${tokens.backendUrl}/edit-event`;
-    const editBody = { instruction: message.text, existingEvent, now: new Date().toISOString() };
-    console.log('[InstaCal] POST', editUrl, JSON.stringify(editBody));
+    const editBody = { instruction: message.text, existingEvent, now: new Date().toISOString(), people: message.people ?? [] };
+    console.log('[InstaCal] POST', editUrl, 'instruction:', message.text, 'people count:', editBody.people.length);
 
     const aiController = new AbortController();
     const aiTimeoutId = setTimeout(() => aiController.abort(), 25000);
@@ -306,22 +284,16 @@ async function handleEditEventWithAI(message: { text: string; eventId: string; c
     try {
         editResp = await fetch(editUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${tokens.firebaseToken}`,
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokens.firebaseToken}` },
             body: JSON.stringify(editBody),
             signal: aiController.signal,
         });
     } catch (err) {
         clearTimeout(aiTimeoutId);
-        if (err instanceof Error && err.name === 'AbortError') {
-            throw new Error('AI request timed out. Please try again.');
-        }
+        if (err instanceof Error && err.name === 'AbortError') throw new Error('AI request timed out. Please try again.');
         throw err;
     }
     clearTimeout(aiTimeoutId);
-    console.log('[InstaCal] edit-event response status:', editResp.status);
     if (!editResp.ok) {
         const rawBody = await editResp.text();
         console.log('[InstaCal] edit-event error body:', rawBody);
@@ -332,22 +304,54 @@ async function handleEditEventWithAI(message: { text: string; eventId: string; c
     const event = await editResp.json();
     console.log('[InstaCal] edit-event result:', JSON.stringify(event));
 
-    // Step 3: PATCH the calendar event
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const patchBody = {
-        summary: event.title,
-        start: { dateTime: event.start, timeZone },
-        end: { dateTime: event.end, timeZone },
-        ...(event.location != null && { location: event.location }),
-        ...(event.description != null && { description: event.description }),
+    // Return AI result + existing attendees — content script handles unknown attendee resolution, then calls patchCalendarEvent
+    return {
+        success: true,
+        event,
+        eventId: message.eventId,
+        calendarId: message.calendarId || calId,
+        resolvedAttendees: event.attendees ?? [],
+        unknownAttendees: event.unknownAttendees ?? [],
+        existingGCalAttendees,
     };
-    const patchUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(message.calendarId || calId)}/events/${encodeURIComponent(message.eventId)}`;
+}
+
+async function handlePatchCalendarEvent(message: {
+    eventId: string;
+    calendarId: string;
+    event: Record<string, any>;
+    newAttendees: Array<{ email: string; name: string }>;
+    existingGCalAttendees: GCalAttendee[];
+}) {
+    const tokens = await getTokens();
+    if (!tokens) throw new Error('Not signed in to InstaCal');
+
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const patchBody: Record<string, any> = {
+        summary: message.event.title,
+        start: { dateTime: message.event.start, timeZone },
+        end: { dateTime: message.event.end, timeZone },
+        ...(message.event.location != null && { location: message.event.location }),
+        ...(message.event.description != null && { description: message.event.description }),
+    };
+
+    if (message.newAttendees.length > 0) {
+        const existing = message.existingGCalAttendees.map((a) => ({ email: a.email }));
+        const adding = message.newAttendees.map((a) => ({ email: a.email }));
+        // Merge, de-duping by email
+        const seen = new Set(existing.map((a) => a.email.toLowerCase()));
+        const merged = [...existing];
+        for (const a of adding) {
+            if (!seen.has(a.email.toLowerCase())) { merged.push(a); seen.add(a.email.toLowerCase()); }
+        }
+        patchBody.attendees = merged;
+    }
+
+    const patchUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(message.calendarId)}/events/${encodeURIComponent(message.eventId)}`;
+    console.log('[InstaCal] PATCH', patchUrl, JSON.stringify(patchBody));
     const patchResp = await fetch(patchUrl, {
         method: 'PATCH',
-        headers: {
-            'Authorization': `Bearer ${tokens.calendarToken}`,
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${tokens.calendarToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(patchBody),
     });
     if (!patchResp.ok) {
@@ -362,7 +366,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         handleEditEventWithAI(message).then(sendResponse).catch((err: Error) => {
             sendResponse({ success: false, error: err.message || 'Unknown error' });
         });
-        return true; // keep message channel open for async response
+        return true;
+    }
+    if (message.action === 'patchCalendarEvent') {
+        handlePatchCalendarEvent(message).then(sendResponse).catch((err: Error) => {
+            sendResponse({ success: false, error: err.message || 'Unknown error' });
+        });
+        return true;
     }
 });
 

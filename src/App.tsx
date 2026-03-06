@@ -5,8 +5,9 @@ import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
 import PreferencesPage, { DEFAULT_PREFS, type Prefs } from "./components/PreferencesPage";
 import CoffeePage from "./components/CoffeePage";
-import PeoplePage, { savePeople, loadPeople, type Person } from "./components/PeoplePage";
-import { MAX_PEOPLE, PREF_KEY, FIREBASE_TOKEN_EXPIRY_MS } from "./constants";
+import PeoplePage from "./components/PeoplePage";
+import { loadPeople, savePeople, upsertPerson, type Person } from "./utils/people";
+import { PREF_KEY, FIREBASE_TOKEN_EXPIRY_MS } from "./constants";
 import UnknownPersonModal from "./components/UnknownPersonModal";
 import PageHeader from "./components/PageHeader";
 import SignIn from "./components/SignIn";
@@ -253,40 +254,11 @@ function App() {
 
   async function handleModalAdd(email: string, saveToDefaults: boolean) {
     const name = unknownQueue[0];
-
     const newResolved = [...resolvedAttendees, { email, name }];
     setResolvedAttendees(newResolved);
 
     if (saveToDefaults) {
-      const [firstName, ...rest] = name.split(' ');
-      const lastName = rest.join(' ');
-      const newPerson: Person = {
-        id: crypto.randomUUID(),
-        firstName: firstName ?? name,
-        lastName,
-        email,
-        lastUsed: Date.now(),
-      };
-
-      let updatedPeople = [...people];
-      if (updatedPeople.length >= MAX_PEOPLE) {
-        const lruIndex = updatedPeople.reduce(
-          (minIdx, p, idx) => p.lastUsed < updatedPeople[minIdx].lastUsed ? idx :           minIdx,
-          0
-        );
-        updatedPeople.splice(lruIndex, 1);
-      }
-      updatedPeople.push(newPerson);
-      setPeople(updatedPeople);
-      await savePeople(updatedPeople);
-    }
-
-    // Update lastUsed for any existing person with this email
-    const existingIdx = people.findIndex((p) => p.email === email);
-    if (existingIdx !== -1) {
-      const updatedPeople = people.map((p, i) =>
-        i === existingIdx ? { ...p, lastUsed: Date.now() } : p
-      );
+      const updatedPeople = upsertPerson(people, name, email);
       setPeople(updatedPeople);
       await savePeople(updatedPeople);
     }

@@ -94,6 +94,7 @@ interface EditEventRequestBody {
   instruction?: string
   existingEvent?: ExistingEventContext
   now?: string
+  people?: PersonContact[]
 }
 
 app.post(
@@ -140,7 +141,7 @@ app.post(
   '/edit-event',
   verifyAuth,
   async (req: Request<object, ParsedEvent | { error: string }, EditEventRequestBody>, res: Response) => {
-    const { instruction, existingEvent, now } = req.body
+    const { instruction, existingEvent, now, people } = req.body
 
     if (!instruction || instruction.trim().length === 0) {
       res.status(400).json({ error: 'instruction is required' })
@@ -164,7 +165,7 @@ app.post(
 
     try {
       const event = await editEventWithAI(
-        { instruction: instruction.trim(), existingEvent, nowISO: now ?? new Date().toISOString() },
+        { instruction: instruction.trim(), existingEvent, nowISO: now ?? new Date().toISOString(), people },
         getGeminiApiKey()
       )
       res.json(event)

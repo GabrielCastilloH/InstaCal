@@ -187,19 +187,35 @@ export type PersonContact = {
 }
 
 export async function editEventWithAI(
-  input: { instruction: string; existingEvent: ExistingEventContext; nowISO: string },
+  input: { instruction: string; existingEvent: ExistingEventContext; nowISO: string; people?: PersonContact[] },
   apiKey: string
 ): Promise<ParsedEvent> {
   const genAI = new GoogleGenerativeAI(apiKey)
-  const { instruction, existingEvent, nowISO } = input
+  const { instruction, existingEvent, nowISO, people } = input
 
-  const systemPrompt = SYSTEM_PROMPT_EDIT
+  let systemPrompt = SYSTEM_PROMPT_EDIT
     .replace('{NOW_ISO}', nowISO)
     .replace('{EXISTING_TITLE}', existingEvent.title)
     .replace('{EXISTING_START}', existingEvent.start)
     .replace('{EXISTING_END}', existingEvent.end)
     .replace('{EXISTING_LOCATION}', existingEvent.location ?? 'null')
     .replace('{EXISTING_DESCRIPTION}', existingEvent.description ?? 'null')
+
+  if (people && people.length > 0) {
+    const peopleLines = people.map((p) => `- ${p.firstName} ${p.lastName}: ${p.email}`).join('\n')
+    const peopleBlock = `
+Known people (resolve their names to emails when mentioned):
+${peopleLines}
+
+Additional fields to return:
+  "attendees":        array of { "email": string, "name": string } — resolved known people mentioned in the instruction; empty array if none
+  "unknownAttendees": array of strings — names mentioned in the instruction NOT found in Known people; empty array if none
+`
+    systemPrompt = systemPrompt.replace(
+      '- Output ONLY the JSON object. Any other text will cause an error.',
+      `${peopleBlock}- Output ONLY the JSON object. Any other text will cause an error.`
+    )
+  }
 
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash-lite',
