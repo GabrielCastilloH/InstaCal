@@ -201,21 +201,23 @@ export async function editEventWithAI(
     .replace('{EXISTING_LOCATION}', existingEvent.location ?? 'null')
     .replace('{EXISTING_DESCRIPTION}', existingEvent.description ?? 'null')
 
-  if (people && people.length > 0) {
-    const peopleLines = people.map((p) => `- ${p.firstName} ${p.lastName}: ${p.email}`).join('\n')
-    const peopleBlock = `
-Known people (resolve their names to emails when mentioned):
-${peopleLines}
+  // Always inject the attendees block so the AI can detect guest additions even with an empty people list
+  const knownPeopleSection = (people && people.length > 0)
+    ? `Known people (resolve their names to emails when mentioned):\n${people.map((p) => `- ${p.firstName} ${p.lastName}: ${p.email}`).join('\n')}\n`
+    : 'Known people: (none saved yet)\n'
 
-Additional fields to return:
-  "attendees":        array of { "email": string, "name": string } — resolved known people mentioned in the instruction; empty array if none
-  "unknownAttendees": array of strings — names mentioned in the instruction NOT found in Known people; empty array if none
+  const attendeesBlock = `
+${knownPeopleSection}
+IMPORTANT — if the user's instruction asks to add, invite, or include a person as a guest/attendee:
+  "attendees":        array of { "email": string, "name": string } — people from Known people who were mentioned; empty array if none
+  "unknownAttendees": array of strings — names to add as guests NOT found in Known people; empty array if none
+
+Only populate these when the instruction explicitly asks to add/invite someone. Do NOT add people just because they appear in the title.
 `
-    systemPrompt = systemPrompt.replace(
-      '- Output ONLY the JSON object. Any other text will cause an error.',
-      `${peopleBlock}- Output ONLY the JSON object. Any other text will cause an error.`
-    )
-  }
+  systemPrompt = systemPrompt.replace(
+    '- Output ONLY the JSON object. Any other text will cause an error.',
+    `${attendeesBlock}- Output ONLY the JSON object. Any other text will cause an error.`
+  )
 
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash-lite',
