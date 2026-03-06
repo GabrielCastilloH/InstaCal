@@ -73,10 +73,11 @@ export default defineConfig({
         background: resolve(__dirname, 'src/background.ts'),
         auth: resolve(__dirname, 'src/auth.ts'),
         content: resolve(__dirname, 'src/content.ts'),
+        'content-ui': resolve(__dirname, 'src/content-ui.tsx'),
       },
       output: {
         entryFileNames: (chunk) =>
-          ['background', 'auth', 'content'].includes(chunk.name)
+          ['background', 'auth', 'content', 'content-ui'].includes(chunk.name)
             ? '[name].js'
             : 'assets/[name]-[hash].js',
       },
