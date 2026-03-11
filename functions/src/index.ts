@@ -130,8 +130,10 @@ app.post(
     try {
       const apiKey = getGeminiApiKey()
       const event = await parseEventWithAI({ text: text.trim(), nowISO, defaults, people }, apiKey)
+      console.log('[InstaCal] parseEventWithAI result:', JSON.stringify(event))
       res.json(event)
     } catch (err) {
+      console.error('[InstaCal] parseEventWithAI error:', err)
       res.status(500).json({ error: 'parse failed' })
     }
   }

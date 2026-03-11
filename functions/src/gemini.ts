@@ -25,13 +25,17 @@ The user will describe a calendar event or task in natural language.
 The current date and time is: {NOW_ISO}
 
 Extract the event/task and return ONLY a valid JSON object — no markdown, no explanation — with exactly these fields:
-  "title":       string   — short event title, properly capitalized and grammatically clean (e.g. "Dinner with Gabe", not "dinner w/gabe")
-  "start":       string   — ISO-8601 local datetime, no timezone offset (e.g. "2026-03-10T14:00:00")
-  "end":         string   — ISO-8601 local datetime, no timezone offset
-  "location":    string | null
-  "description": string | null
-  "recurrence":  string | null  — RFC 5545 RRULE string if the event repeats, otherwise null
-  "isTask":      boolean  — true if this is a task/assignment/deadline (things to DO), false if it's an event/activity (scheduled TIME for doing something)
+  "title":            string   — short event title, properly capitalized and grammatically clean (e.g. "Dinner with Gabe", not "dinner w/gabe")
+  "start":            string   — ISO-8601 local datetime, no timezone offset (e.g. "2026-03-10T14:00:00")
+  "end":              string   — ISO-8601 local datetime, no timezone offset
+  "location":         string | null
+  "description":      string | null
+  "recurrence":       string | null  — RFC 5545 RRULE string if the event repeats, otherwise null
+  "isTask":           boolean  — true if this is a task/assignment/deadline (things to DO), false if it's an event/activity (scheduled TIME for doing something)
+  "attendees":        array of { "email": string, "name": string } — people from the known contacts list who are mentioned as attendees; empty array [] if none
+  "unknownAttendees": array of strings — names of attendees NOT found in the known contacts list; empty array [] if none
+
+{PEOPLE_RULES}
 
 Task vs Event Detection:
 - Treat as TASK (isTask: true) when:
@@ -75,13 +79,17 @@ The user will describe a calendar event or task in natural language.
 The current date and time is: {NOW_ISO}
 
 Extract the event/task and return ONLY a valid JSON object — no markdown, no explanation — with exactly these fields:
-  "title":       string   — short event title, properly capitalized and grammatically clean (e.g. "Dinner with Gabe", not "dinner w/gabe")
-  "start":       string   — ISO-8601 local datetime, no timezone offset (e.g. "2026-03-10T14:00:00")
-  "end":         string   — ISO-8601 local datetime, no timezone offset
-  "location":    string | null
-  "description": string | null
-  "recurrence":  string | null  — RFC 5545 RRULE string if the event repeats, otherwise null
-  "isTask":      boolean  — true if this is a task/assignment/deadline (things to DO), false if it's an event/activity (scheduled TIME for doing something)
+  "title":            string   — short event title, properly capitalized and grammatically clean (e.g. "Dinner with Gabe", not "dinner w/gabe")
+  "start":            string   — ISO-8601 local datetime, no timezone offset (e.g. "2026-03-10T14:00:00")
+  "end":              string   — ISO-8601 local datetime, no timezone offset
+  "location":         string | null
+  "description":      string | null
+  "recurrence":       string | null  — RFC 5545 RRULE string if the event repeats, otherwise null
+  "isTask":           boolean  — true if this is a task/assignment/deadline (things to DO), false if it's an event/activity (scheduled TIME for doing something)
+  "attendees":        array of { "email": string, "name": string } — people from the known contacts list who are mentioned as attendees; empty array [] if none
+  "unknownAttendees": array of strings — names of attendees NOT found in the known contacts list; empty array [] if none
+
+{PEOPLE_RULES}
 
 Task vs Event Detection:
 - Treat as TASK (isTask: true) when:
@@ -257,11 +265,24 @@ export async function parseEventWithAI(
 `
     : ''
 
+  const knownPeopleSection = (input.people && input.people.length > 0)
+    ? `Known contacts:\n${input.people.map((p) => `- ${p.firstName} ${p.lastName}: ${p.email}`).join('\n')}`
+    : 'Known contacts: (none)'
+
+  const peopleRules = `${knownPeopleSection}
+
+Attendee detection rules:
+- Any person's name mentioned alongside social/work words ("with", "and", "meet", "invite", etc.) is an attendee.
+- "Dinner with Gabe" → unknownAttendees: ["Gabe"]. "Coffee with Sarah and Tom" → unknownAttendees: ["Sarah", "Tom"].
+- If the name matches a known contact, put them in "attendees" with their email; otherwise put the name string in "unknownAttendees".
+- Always output both "attendees" and "unknownAttendees" — use [] when empty.`
+
   let systemPrompt: string
   if (useSmartDefaults) {
     systemPrompt = SYSTEM_PROMPT_SMART
       .replace('{NOW_ISO}', input.nowISO)
       .replace('{TASK_FORMATTING_RULES}', taskFormattingRules)
+      .replace('{PEOPLE_RULES}', peopleRules)
   } else {
     const d = input.defaults!
     systemPrompt = SYSTEM_PROMPT_MANUAL
@@ -270,24 +291,7 @@ export async function parseEventWithAI(
       .replace(/{DEFAULT_START_TIME}/g, d.defaultStartTime)
       .replace(/{DEFAULT_DURATION}/g, String(d.defaultDuration))
       .replace(/{DEFAULT_LOCATION}/g, d.defaultLocation)
-  }
-
-  if (input.people && input.people.length > 0) {
-    const peopleLines = input.people
-      .map((p) => `- ${p.firstName} ${p.lastName}: ${p.email}`)
-      .join('\n')
-    const peopleBlock = `
-Known people (resolve their names to emails when mentioned):
-${peopleLines}
-
-Additional fields to return:
-  "attendees":        array of { "email": string, "name": string } — resolved known people mentioned in the event; empty array if none
-  "unknownAttendees": array of strings — names mentioned in the event NOT found in Known people; empty array if none
-`
-    systemPrompt = systemPrompt.replace(
-      '- Output ONLY the JSON object. Any other text will cause an error.',
-      `${peopleBlock}- Output ONLY the JSON object. Any other text will cause an error.`
-    )
+      .replace('{PEOPLE_RULES}', peopleRules)
   }
 
   const model = genAI.getGenerativeModel({

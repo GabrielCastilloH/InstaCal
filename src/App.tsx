@@ -231,7 +231,9 @@ function App() {
     try {
       const idToken = await getFirebaseIdToken();
       const calendarToken = await getGoogleCalendarToken();
+      console.log('[InstaCal] handleAddEvent → idToken present:', !!idToken, '| calendarToken present:', !!calendarToken);
       if (!idToken || !calendarToken) {
+        console.error('[InstaCal] Missing token — idToken:', !!idToken, 'calendarToken:', !!calendarToken);
         throw new Error("Not authenticated");
       }
 

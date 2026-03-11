@@ -41,7 +41,12 @@ export async function parseEvent(
   people?: PersonContact[],
   userName?: string,
 ): Promise<ParsedEvent> {
-  const response = await fetch(`${BACKEND_URL}/parse`, {
+  const url = `${BACKEND_URL}/parse`
+  console.log('[InstaCal] parseEvent → POST', url)
+  console.log('[InstaCal] idToken present:', !!idToken, '| length:', idToken?.length)
+  console.log('[InstaCal] request body:', JSON.stringify({ text, defaults, people, userName }))
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -56,16 +61,22 @@ export async function parseEvent(
     }),
   })
 
+  console.log('[InstaCal] response status:', response.status, response.statusText)
+
   if (!response.ok) {
     let message = `Server error: ${response.status}`
     try {
       const body = await response.json() as { error?: string }
+      console.log('[InstaCal] error response body:', body)
       if (body.error) message = body.error
     } catch {
-      // response body wasn't JSON — keep the status-based message
+      const raw = await response.text().catch(() => '')
+      console.log('[InstaCal] error response (raw):', raw)
     }
     throw new Error(message)
   }
 
-  return response.json() as Promise<ParsedEvent>
+  const result = await response.json() as ParsedEvent
+  console.log('[InstaCal] parsed event result:', result)
+  return result
 }
