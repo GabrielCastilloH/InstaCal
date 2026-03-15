@@ -171,7 +171,8 @@ app.post(
         getGeminiApiKey()
       )
       res.json(event)
-    } catch {
+    } catch (err) {
+      console.error('[edit-event] error:', err)
       res.status(500).json({ error: 'edit failed' })
     }
   }
