@@ -50,23 +50,29 @@ function getFromStorage(keys: string | string[]): Promise<Record<string, any>> {
 
 // --- Auth helpers ---
 
+function getGoogleToken(): Promise<string | null> {
+    return new Promise((resolve) => {
+        chrome.identity.getAuthToken({ interactive: false }, (result) => {
+            if (chrome.runtime.lastError || !result?.token) resolve(null);
+            else resolve(result.token);
+        });
+    });
+}
+
 async function getTokens() {
+    const calendarToken = await getGoogleToken();
+    if (!calendarToken) {
+        console.error('[InstaCal] Google Calendar token unavailable');
+        return null;
+    }
+
     const result = await getFromStorage([
-        'instacal_google_calendar_token',
-        'instacal_google_calendar_token_expiry',
         'instacal_firebase_id_token',
         'instacal_firebase_id_token_expiry',
         'instacal_firebase_refresh_token',
         'instacal_firebase_api_key',
         'instacal_backend_url',
     ]);
-
-    const calendarToken = result.instacal_google_calendar_token;
-    const calendarExpiry = result.instacal_google_calendar_token_expiry;
-    if (!calendarToken || (calendarExpiry && Date.now() >= calendarExpiry - TOKEN_EXPIRY_BUFFER_MS)) {
-        console.error('[InstaCal] Google Calendar token missing or expired');
-        return null;
-    }
 
     let firebaseToken = result.instacal_firebase_id_token;
     const firebaseExpiry = result.instacal_firebase_id_token_expiry;

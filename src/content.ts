@@ -110,16 +110,9 @@ function injectEditButton(eventId: string, calendarId: string) {
 // --- Auth check ---
 
 function checkSignedIn(): Promise<boolean> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(
-      ['instacal_google_calendar_token', 'instacal_google_calendar_token_expiry'],
-      (result) => {
-        const token = result['instacal_google_calendar_token'];
-        const expiry = result['instacal_google_calendar_token_expiry'] as number | undefined;
-        resolve(typeof token === 'string' && (!expiry || Date.now() < expiry));
-      }
-    );
-  });
+  // Auth is managed by chrome.identity.getAuthToken — always allow button injection.
+  // Auth errors surface when the edit operation runs.
+  return Promise.resolve(true);
 }
 
 // --- SPA navigation + DOM watch ---
@@ -147,12 +140,6 @@ new MutationObserver(() => {
     void tryInjectForCurrentUrl();
   }
 }).observe(document.body, { childList: true, subtree: true });
-
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && 'instacal_google_calendar_token' in changes) {
-    void tryInjectForCurrentUrl();
-  }
-});
 
 LOG('MutationObserver attached');
 void tryInjectForCurrentUrl();

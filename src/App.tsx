@@ -11,9 +11,8 @@ import { loadPeople, savePeople, upsertPerson, type Person } from "./utils/peopl
 import { PREF_KEY, FIREBASE_TOKEN_EXPIRY_MS } from "./constants";
 import UnknownPersonModal from "./components/UnknownPersonModal";
 import PageHeader from "./components/PageHeader";
-import SignIn from "./components/SignIn";
 import { parseEvent, isAllDayEvent, type ParsedEvent } from "./services/parseEvent";
-import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
+import { getFirebaseIdToken, getGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
 import { syncPeopleOnInit, savePeopleToFirestore } from "./services/firestorePeople";
 import { fetchAvailability } from "./services/availability";
@@ -77,14 +76,13 @@ function App() {
     let cancelled = false;
 
     async function init() {
-      // Store config values so background.js can silently refresh tokens without opening the popup
+      // Store config values so background.js can use them for Firebase token refresh
       chrome.storage.local.set({
-        'instacal_google_client_id': import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string,
         'instacal_firebase_api_key': import.meta.env.VITE_FIREBASE_API_KEY as string,
       });
 
-      // Check for a stored Google token and re-authenticate
-      const googleToken = await getGoogleCalendarToken();
+      // Get a Google token via chrome.identity (interactive=true triggers consent on first use)
+      const googleToken = await getGoogleCalendarToken(true);
       if (googleToken) {
         try {
           const credential = GoogleAuthProvider.credential(null, googleToken);
@@ -134,7 +132,7 @@ function App() {
           }
           return;
         } catch {
-          await clearGoogleCalendarToken();
+          // Firebase sign-in failed — fall through to show loading state resolved
         }
       }
 
@@ -146,20 +144,8 @@ function App() {
 
     init();
 
-    // Re-run auth when the token is written by the auth tab after sign-in
-    function onStorageChanged(
-      changes: Record<string, chrome.storage.StorageChange>,
-      area: string,
-    ) {
-      if (area === "local" && changes["instacal_google_calendar_token"]?.newValue) {
-        init();
-      }
-    }
-    chrome.storage.onChanged.addListener(onStorageChanged);
-
     return () => {
       cancelled = true;
-      chrome.storage.onChanged.removeListener(onStorageChanged);
     };
   }, []);
 
@@ -317,16 +303,11 @@ function App() {
     handleExportAvailability(start, end);
   }
 
-  if (!authLoading && !user) {
-    return <SignIn />;
-  }
-
   if (user && settingsPage === "settings") {
     return (
       <SettingsPage
         onBack={() => setSettingsPage(null)}
         onNavigate={(page) => setSettingsPage(page)}
-        onSignOut={() => { setUser(null); setSettingsPage(null); }}
       />
     );
   }
