@@ -1,25 +1,13 @@
-import { test, expect, chromium, type BrowserContext } from '@playwright/test'
-import path from 'path'
+import { test, expect, type BrowserContext } from '@playwright/test'
+import { launchExtension, getExtensionId } from './helpers'
 
 let context: BrowserContext
 let extensionId: string
 
 test.beforeAll(async () => {
-  const pathToExtension = path.resolve('dist')
-  context = await chromium.launchPersistentContext('', {
-    headless: false,
-    args: [
-      `--disable-extensions-except=${pathToExtension}`,
-      `--load-extension=${pathToExtension}`,
-    ],
-  })
-
-  // Wait for service worker registration
-  let [background] = context.serviceWorkers()
-  if (!background) {
-    background = await context.waitForEvent('serviceworker', { timeout: 10_000 })
-  }
-  extensionId = background.url().split('/')[2]
+  // Temp profile (empty string) — no auth needed for these smoke tests
+  context = await launchExtension('')
+  extensionId = await getExtensionId(context)
 })
 
 test.afterAll(async () => {
@@ -34,7 +22,6 @@ test('service worker registers without errors', async () => {
 test('popup renders the main UI or sign-in page', async () => {
   const page = await context.newPage()
   await page.goto(`chrome-extension://${extensionId}/index.html`)
-  // Either authenticated main UI or sign-in is rendered — body must have content
   await expect(page.locator('body')).not.toBeEmpty()
   await page.close()
 })
