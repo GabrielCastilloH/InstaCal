@@ -3,6 +3,7 @@ const LOG = (...args: unknown[]) => console.log('[InstaCal]', ...args);
 LOG('content script loaded on', location.href);
 
 const EDIT_BTN_ID = 'instacal-edit-ai-btn';
+const DIALOG_ID   = 'instacal-dialog';
 
 // --- URL parsing ---
 
@@ -30,40 +31,65 @@ function getEventFromEditUrl(): { eventId: string; calendarId: string } | null {
 
 function removeInjected() {
   document.getElementById(EDIT_BTN_ID)?.remove();
-  document.getElementById('instacal-react-root')
-    ?.dispatchEvent(new CustomEvent('instacal:close-panel'));
+  const dlg = document.getElementById(DIALOG_ID) as HTMLDialogElement | null;
+  if (dlg) { dlg.close(); dlg.remove(); }
 }
 
 // --- Panel (shadow DOM + React, mounted by content-ui.js) ---
 
 function injectPanel(eventId: string, calendarId: string) {
-  let host = document.getElementById('instacal-react-root');
-
-  if (!host) {
-    // Create shadow host. content-ui.js MutationObserver will detect it and mount React.
-    host = document.createElement('div');
-    host.id = 'instacal-react-root';
-    // Cover full viewport; pointer-events:none so it never blocks the page when the panel is closed
-    host.style.cssText = 'position:fixed;inset:0;z-index:2147483646;pointer-events:none;';
-    const shadow = host.attachShadow({ mode: 'open' });
-    const mount = document.createElement('div');
-    mount.id = 'instacal-mount';
-    shadow.appendChild(mount);
-
-    // Wait for content-ui.js to finish mounting React, then open the panel
-    host.addEventListener(
-      'instacal:ui-ready',
-      () => {
-        host!.dispatchEvent(new CustomEvent('instacal:open-panel', { detail: { eventId, calendarId } }));
-      },
-      { once: true },
-    );
-
-    document.body.appendChild(host);
-  } else {
-    // React already mounted — open panel immediately
-    host.dispatchEvent(new CustomEvent('instacal:open-panel', { detail: { eventId, calendarId } }));
+  // If the dialog and React app already exist, reuse them
+  const existingDlg  = document.getElementById(DIALOG_ID) as HTMLDialogElement | null;
+  const existingHost = document.getElementById('instacal-react-root');
+  if (existingDlg && existingHost) {
+    if (!existingDlg.open) existingDlg.showModal();
+    existingHost.dispatchEvent(new CustomEvent('instacal:open-panel', { detail: { eventId, calendarId } }));
+    return;
   }
+
+  // Wrap in a <dialog> so it enters the CSS top layer and renders above
+  // Google Calendar's own modal dialogs, regardless of z-index stacking contexts.
+  const dialog = document.createElement('dialog');
+  dialog.id = DIALOG_ID;
+  dialog.style.cssText =
+    'padding:0;margin:0;border:none;background:transparent;' +
+    'max-width:none;max-height:none;width:100%;height:100%;' +
+    'overflow:visible;pointer-events:none;';
+  // Prevent native Escape from closing the dialog; React handles Escape itself
+  dialog.addEventListener('cancel', (e) => e.preventDefault());
+
+  // Hide the browser's default ::backdrop (our shadow DOM provides its own)
+  const backdropStyle = document.createElement('style');
+  backdropStyle.textContent = '#instacal-dialog::backdrop { background: transparent; }';
+  document.head.appendChild(backdropStyle);
+
+  const host = document.createElement('div');
+  host.id = 'instacal-react-root';
+  host.style.cssText = 'position:fixed;inset:0;pointer-events:none;';
+  const shadow = host.attachShadow({ mode: 'open' });
+  const mount = document.createElement('div');
+  mount.id = 'instacal-mount';
+  shadow.appendChild(mount);
+
+  // Wait for content-ui.js to finish mounting React, then show the dialog and open the panel.
+  // showModal() is intentionally deferred — calling it before React is ready leaves an
+  // invisible modal backdrop that makes the button (outside the dialog) permanently inert.
+  host.addEventListener(
+    'instacal:ui-ready',
+    () => {
+      dialog.showModal();
+      host.dispatchEvent(new CustomEvent('instacal:open-panel', { detail: { eventId, calendarId } }));
+    },
+    { once: true },
+  );
+
+  // Close the dialog (without removing it) when React signals the panel has closed
+  host.addEventListener('instacal:panel-closed', () => {
+    dialog.close();
+  });
+
+  dialog.appendChild(host);
+  document.body.appendChild(dialog);
 }
 
 // --- Button injection ---

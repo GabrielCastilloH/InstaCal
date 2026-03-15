@@ -64,6 +64,47 @@ export default defineConfig({
         })
       },
     },
+    {
+      // content-ui.tsx must be a self-contained classic script — it runs as a
+      // Chrome content script and cannot load sibling ES-module chunk files.
+      // We build it separately with esbuild (which bundles everything inline)
+      // after Rollup finishes, overwriting any stub Rollup may have emitted.
+      name: 'bundle-content-ui',
+      apply: 'build',
+      enforce: 'post',
+      async closeBundle() {
+        const { build } = await import('esbuild');
+        const path = await import('path');
+        const fs = await import('fs');
+
+        await build({
+          entryPoints: [path.resolve(__dirname, 'src/content-ui.tsx')],
+          bundle: true,
+          outfile: path.resolve(__dirname, 'dist/content-ui.js'),
+          format: 'iife',
+          jsx: 'automatic',
+          target: 'chrome100',
+          define: { 'process.env.NODE_ENV': '"production"' },
+          plugins: [
+            {
+              // Handle Vite's `?inline` CSS imports — return the file contents
+              // as an exported string so the component can inject them at runtime.
+              name: 'inline-css',
+              setup(build) {
+                build.onResolve({ filter: /\.css\?inline$/ }, args => ({
+                  path: path.resolve(path.dirname(args.importer), args.path.replace(/\?inline$/, '')),
+                  namespace: 'inline-css',
+                }));
+                build.onLoad({ filter: /.*/, namespace: 'inline-css' }, args => ({
+                  contents: `export default ${JSON.stringify(fs.readFileSync(args.path, 'utf8'))}`,
+                  loader: 'js',
+                }));
+              },
+            },
+          ],
+        });
+      },
+    },
   ],
   base: './',
   build: {
@@ -73,11 +114,12 @@ export default defineConfig({
         background: resolve(__dirname, 'src/background.ts'),
         auth: resolve(__dirname, 'src/auth.ts'),
         content: resolve(__dirname, 'src/content.ts'),
-        'content-ui': resolve(__dirname, 'src/content-ui.tsx'),
+        // content-ui is intentionally omitted here — the bundle-content-ui
+        // plugin above builds it as a self-contained IIFE via esbuild.
       },
       output: {
         entryFileNames: (chunk) =>
-          ['background', 'auth', 'content', 'content-ui'].includes(chunk.name)
+          ['background', 'auth', 'content'].includes(chunk.name)
             ? '[name].js'
             : 'assets/[name]-[hash].js',
       },

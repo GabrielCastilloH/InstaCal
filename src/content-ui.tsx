@@ -59,9 +59,6 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
   const { people, addPerson } = usePeople();
 
   useEffect(() => {
-    // Signal content.ts that React is mounted and ready to receive events
-    host.dispatchEvent(new CustomEvent('instacal:ui-ready'));
-
     function handleOpen(e: Event) {
       const detail = (e as CustomEvent<{ eventId: string; calendarId: string }>).detail;
       setEventId(detail.eventId);
@@ -82,6 +79,13 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
 
     host.addEventListener('instacal:open-panel', handleOpen);
     host.addEventListener('instacal:close-panel', handleClose);
+
+    // Signal content.ts that React is mounted and ready to receive events.
+    // Must be dispatched AFTER listeners are registered — the ui-ready handler
+    // in content.ts synchronously fires instacal:open-panel, so the listener
+    // must already be in place when that event arrives.
+    host.dispatchEvent(new CustomEvent('instacal:ui-ready'));
+
     return () => {
       host.removeEventListener('instacal:open-panel', handleOpen);
       host.removeEventListener('instacal:close-panel', handleClose);
@@ -92,10 +96,15 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
     if (open) setTimeout(() => textareaRef.current?.focus(), 0);
   }, [open]);
 
+  function handleClose() {
+    setOpen(false);
+    host.dispatchEvent(new CustomEvent('instacal:panel-closed'));
+  }
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') handleClose();
     }
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
@@ -215,7 +224,7 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
 
   return (
     <>
-      <div className="instacal-backdrop" onClick={() => setOpen(false)} />
+      <div className="instacal-backdrop" onClick={handleClose} />
       <div className="instacal-panel">
         <div className="instacal-header">
           <div className="instacal-header-title">
@@ -224,7 +233,7 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
             </svg>
             Edit with AI
           </div>
-          <button className="instacal-close-btn" onClick={() => setOpen(false)}>&#x2715;</button>
+          <button className="instacal-close-btn" onClick={handleClose}>&#x2715;</button>
         </div>
 
         <div className="instacal-body">
@@ -246,7 +255,7 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
               />
               {formError && <p className="instacal-form-error">{formError}</p>}
               <div className="instacal-actions">
-                <button className="instacal-btn-cancel" onClick={() => setOpen(false)}>
+                <button className="instacal-btn-cancel" onClick={handleClose}>
                   Cancel
                 </button>
                 <button className="instacal-btn-primary" onClick={() => void handleSubmit()}>
@@ -270,7 +279,7 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
             <>
               <p className="instacal-error-msg">{patchError}</p>
               <div className="instacal-actions">
-                <button className="instacal-btn-primary" onClick={() => setOpen(false)}>
+                <button className="instacal-btn-primary" onClick={handleClose}>
                   Close
                 </button>
               </div>
@@ -293,11 +302,11 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
 
 // --- Lazy mount: wait for content.ts to create the shadow host ---
 
-let mounted = false;
-
 function mountApp(host: HTMLElement) {
-  if (mounted || !host.shadowRoot) return;
-  mounted = true;
+  // Use a property on the element so each new host element mounts fresh,
+  // even if a previous host was removed and a new one was created.
+  if (!host.shadowRoot || (host as HTMLElement & { __instacalMounted?: boolean }).__instacalMounted) return;
+  (host as HTMLElement & { __instacalMounted?: boolean }).__instacalMounted = true;
 
   const shadow = host.shadowRoot;
 
@@ -321,18 +330,13 @@ function mountApp(host: HTMLElement) {
   }
 }
 
-// Check if shadow host already exists (e.g. script reloaded)
+// Mount immediately if the host already exists (e.g. script reloaded)
 const existingHost = document.getElementById('instacal-react-root');
-if (existingHost) {
-  mountApp(existingHost);
-} else {
-  // Watch for content.ts to append the shadow host to document.body
-  const observer = new MutationObserver(() => {
-    const host = document.getElementById('instacal-react-root');
-    if (host) {
-      observer.disconnect();
-      mountApp(host);
-    }
-  });
-  observer.observe(document.body, { childList: true });
-}
+if (existingHost) mountApp(existingHost);
+
+// Keep watching for new hosts — the dialog (and host) can be removed and
+// recreated on SPA navigation, so we must NOT disconnect after the first mount.
+new MutationObserver(() => {
+  const host = document.getElementById('instacal-react-root');
+  if (host) mountApp(host);
+}).observe(document.body, { childList: true });
