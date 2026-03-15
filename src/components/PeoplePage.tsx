@@ -10,7 +10,7 @@ export { loadPeople, savePeople }
 
 interface PeoplePageProps {
   onBack: () => void
-  uid: string
+  uid?: string
 }
 
 export default function PeoplePage({ onBack, uid }: PeoplePageProps) {
@@ -40,7 +40,7 @@ export default function PeoplePage({ onBack, uid }: PeoplePageProps) {
     const updated = [...people, newPerson]
     setPeople(updated)
     await savePeople(updated)
-    savePeopleToFirestore(uid, updated).catch(() => {})
+    if (uid) savePeopleToFirestore(uid, updated).catch(() => {})
     setFirstName('')
     setLastName('')
     setEmail('')
@@ -51,7 +51,7 @@ export default function PeoplePage({ onBack, uid }: PeoplePageProps) {
     const updated = people.filter((p) => p.id !== id)
     setPeople(updated)
     await savePeople(updated)
-    savePeopleToFirestore(uid, updated).catch(() => {})
+    if (uid) savePeopleToFirestore(uid, updated).catch(() => {})
   }
 
   const backButton = (

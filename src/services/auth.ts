@@ -31,6 +31,7 @@ export async function getGoogleCalendarToken(interactive = false): Promise<strin
   return new Promise((resolve) => {
     chrome.identity.getAuthToken({ interactive }, (result) => {
       if (chrome.runtime.lastError || !result?.token) {
+        console.error('[InstaCal] getAuthToken failed (interactive=' + interactive + '):', chrome.runtime.lastError?.message ?? 'no token returned')
         resolve(null)
       } else {
         resolve(result.token)
