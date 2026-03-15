@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { upsertPerson, loadPeople, savePeople, type Person } from '../../utils/people'
 import { MAX_PEOPLE, PEOPLE_KEY } from '../../constants'
 
@@ -56,15 +56,15 @@ describe('loadPeople', () => {
   })
 
   it('returns empty array when storage has no entry', async () => {
-    chrome.storage.local.get.mockImplementation((_keys: string[], callback: (r: Record<string, unknown>) => void) => {
+    (chrome.storage.local.get as unknown as Mock).mockImplementation((_keys: string[], callback: (r: Record<string, unknown>) => void) => {
       callback({})
     })
     expect(await loadPeople()).toEqual([])
   })
 
   it('returns stored people array', async () => {
-    const stored = [makePerson('alice@example.com', 1000)]
-    chrome.storage.local.get.mockImplementation((_keys: string[], callback: (r: Record<string, unknown>) => void) => {
+    const stored = [makePerson('alice@example.com', 1000)];
+    (chrome.storage.local.get as unknown as Mock).mockImplementation((_keys: string[], callback: (r: Record<string, unknown>) => void) => {
       callback({ [PEOPLE_KEY]: stored })
     })
     expect(await loadPeople()).toEqual(stored)
@@ -80,12 +80,12 @@ describe('savePeople', () => {
     const people: Person[] = [
       makePerson('a@example.com', 100),
       makePerson('b@example.com', 200),
-    ]
-    chrome.storage.local.set.mockImplementation((_data: Record<string, unknown>, callback: () => void) => callback())
+    ];
+    (chrome.storage.local.set as unknown as Mock).mockImplementation((_data: Record<string, unknown>, callback: () => void) => callback())
 
     await savePeople(people)
 
-    expect(chrome.storage.local.set).toHaveBeenCalledWith(
+    expect(chrome.storage.local.set as unknown as Mock).toHaveBeenCalledWith(
       {
         [PEOPLE_KEY]: [
           expect.objectContaining({ email: 'b@example.com' }),

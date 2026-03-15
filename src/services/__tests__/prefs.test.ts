@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { loadPrefs, savePrefs, DEFAULT_PREFS } from '../../services/prefs'
 import { PREF_KEY } from '../../constants'
 
@@ -8,7 +8,7 @@ describe('loadPrefs', () => {
   })
 
   it('returns defaults when storage is empty', async () => {
-    chrome.storage.local.get.mockImplementation((_keys: string[], callback: (r: Record<string, unknown>) => void) => {
+    (chrome.storage.local.get as unknown as Mock).mockImplementation((_keys: string[], callback: (r: Record<string, unknown>) => void) => {
       callback({})
     })
     const prefs = await loadPrefs()
@@ -16,8 +16,8 @@ describe('loadPrefs', () => {
   })
 
   it('merges stored values over defaults', async () => {
-    const stored = { userName: 'Alice', defaultDuration: 30 }
-    chrome.storage.local.get.mockImplementation((_keys: string[], callback: (r: Record<string, unknown>) => void) => {
+    const stored = { userName: 'Alice', defaultDuration: 30 };
+    (chrome.storage.local.get as unknown as Mock).mockImplementation((_keys: string[], callback: (r: Record<string, unknown>) => void) => {
       callback({ [PREF_KEY]: stored })
     })
     const prefs = await loadPrefs()
@@ -29,8 +29,8 @@ describe('loadPrefs', () => {
   })
 
   it('spreads stored partial object over defaults', async () => {
-    const stored = { userName: 'Bob' }
-    chrome.storage.local.get.mockImplementation((_keys: string[], callback: (r: Record<string, unknown>) => void) => {
+    const stored = { userName: 'Bob' };
+    (chrome.storage.local.get as unknown as Mock).mockImplementation((_keys: string[], callback: (r: Record<string, unknown>) => void) => {
       callback({ [PREF_KEY]: stored })
     })
     const prefs = await loadPrefs()
@@ -46,9 +46,9 @@ describe('savePrefs', () => {
   })
 
   it('calls chrome.storage.local.set with correct key and prefs', async () => {
-    chrome.storage.local.set.mockImplementation((_data: Record<string, unknown>, callback: () => void) => callback())
+    (chrome.storage.local.set as unknown as Mock).mockImplementation((_data: Record<string, unknown>, callback: () => void) => callback())
     await savePrefs(DEFAULT_PREFS)
-    expect(chrome.storage.local.set).toHaveBeenCalledWith(
+    expect(chrome.storage.local.set as unknown as Mock).toHaveBeenCalledWith(
       { [PREF_KEY]: DEFAULT_PREFS },
       expect.any(Function),
     )
