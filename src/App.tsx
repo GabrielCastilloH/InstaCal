@@ -303,7 +303,7 @@ function App() {
     handleExportAvailability(start, end);
   }
 
-  if (user && settingsPage === "settings") {
+  if (settingsPage === "settings") {
     return (
       <SettingsPage
         onBack={() => setSettingsPage(null)}
@@ -311,16 +311,16 @@ function App() {
       />
     );
   }
-  if (user && settingsPage === "help") {
+  if (settingsPage === "help") {
     return <HelpContentPage onBack={() => setSettingsPage("settings")} />;
   }
-  if (user && settingsPage === "preferences") {
+  if (settingsPage === "preferences") {
     return <PreferencesPage onBack={() => setSettingsPage("settings")} />;
   }
-  if (user && settingsPage === "people") {
+  if (settingsPage === "people" && user) {
     return <PeoplePage onBack={() => setSettingsPage("settings")} uid={user.uid} />;
   }
-  if (user && settingsPage === "coffee") {
+  if (settingsPage === "coffee") {
     return <CoffeePage onBack={() => setSettingsPage("settings")} />;
   }
 
