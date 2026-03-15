@@ -30,8 +30,7 @@ function getEventFromEditUrl(): { eventId: string; calendarId: string } | null {
 
 function removeInjected() {
   document.getElementById(EDIT_BTN_ID)?.remove();
-  document.getElementById('instacal-react-root')
-    ?.dispatchEvent(new CustomEvent('instacal:close-panel'));
+  document.getElementById('instacal-react-root')?.remove();
 }
 
 // --- Panel (shadow DOM + React, mounted by content-ui.js) ---
