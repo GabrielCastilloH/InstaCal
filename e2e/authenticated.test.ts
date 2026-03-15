@@ -11,13 +11,13 @@
  *   npm run e2e:auth   (automatically picks up saved session)
  */
 import { test, expect, type BrowserContext, type Page } from '@playwright/test'
-import { launchExtension, getExtensionId, PROFILE_DIR } from './helpers'
+import { launchExtensionChrome, getExtensionId, PROFILE_DIR } from './helpers'
 
 let context: BrowserContext
 let extensionId: string
 
 test.beforeAll(async () => {
-  context = await launchExtension(PROFILE_DIR)
+  context = await launchExtensionChrome(PROFILE_DIR)
   extensionId = await getExtensionId(context)
 })
 

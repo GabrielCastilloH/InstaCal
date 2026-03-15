@@ -1,12 +1,12 @@
 import { test, expect, type BrowserContext } from '@playwright/test'
-import { launchExtension, getExtensionId } from './helpers'
+import { launchExtensionChromium, getExtensionId } from './helpers'
 
 let context: BrowserContext
 let extensionId: string
 
 test.beforeAll(async () => {
   // Temp profile (empty string) — no auth needed for these smoke tests
-  context = await launchExtension('')
+  context = await launchExtensionChromium()
   extensionId = await getExtensionId(context)
 })
 
