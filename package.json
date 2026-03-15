@@ -13,8 +13,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "e2e": "npm run build && playwright test e2e/extension.test.ts",
-    "e2e:ui": "npm run build && playwright test --ui",
-    "e2e:auth": "npm run build && playwright test e2e/authenticated.test.ts"
+    "e2e:ui": "npm run build && playwright test --ui"
   },
   "dependencies": {
     "firebase": "^12.9.0",
