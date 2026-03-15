@@ -21,15 +21,15 @@ export default function HelpContentPage({ onBack }: HelpContentPageProps) {
       <div className="help-section">
         <div className="help-step">
           <span className="step-num">1</span>
-          <span className="step-text">Describe your event naturally: include what, when, and where if you know it.</span>
+          <span className="step-text">Type what, when, and where.</span>
         </div>
         <div className="help-step">
           <span className="step-num">2</span>
-          <span className="step-text">AI figures out the details and fills in anything missing.</span>
+          <span className="step-text">AI fills in the details.</span>
         </div>
         <div className="help-step">
           <span className="step-num">3</span>
-          <span className="step-text">Hit <strong>Add Event</strong> and it lands straight in Google Calendar.</span>
+          <span className="step-text">Hit <strong>Add Event</strong> to save it.</span>
         </div>
       </div>
 
@@ -44,37 +44,31 @@ export default function HelpContentPage({ onBack }: HelpContentPageProps) {
 
       <div className="help-divider" />
 
-      <div className="help-section">
-        <p className="help-feature-label">Export Availability</p>
-        <div className="help-step">
-          <span className="step-num">1</span>
-          <span className="step-text">Tap the <strong>calendar icon</strong> next to Add Event.</span>
+      <div className="help-feature-card">
+        <div className="help-feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
         </div>
-        <div className="help-step">
-          <span className="step-num">2</span>
-          <span className="step-text">Pick a date range to check.</span>
-        </div>
-        <div className="help-step">
-          <span className="step-num">3</span>
-          <span className="step-text">Your free slots are copied to your clipboard, ready to paste anywhere.</span>
+        <div className="help-feature-body">
+          <p className="help-feature-title">Export Availability</p>
+          <p className="help-feature-desc">Tap the calendar icon, pick a date range, and your free slots are copied to your clipboard.</p>
         </div>
       </div>
 
-      <div className="help-divider" />
-
-      <div className="help-section">
-        <p className="help-feature-label">Add from Any Page</p>
-        <div className="help-step">
-          <span className="step-num">1</span>
-          <span className="step-text">Highlight any text on a webpage (e.g. an event description).</span>
+      <div className="help-feature-card">
+        <div className="help-feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
         </div>
-        <div className="help-step">
-          <span className="step-num">2</span>
-          <span className="step-text">Right-click and choose <strong>Add to Calendar with InstaCal</strong>.</span>
-        </div>
-        <div className="help-step">
-          <span className="step-num">3</span>
-          <span className="step-text">InstaCal opens with the details pre-filled, ready to review and add.</span>
+        <div className="help-feature-body">
+          <p className="help-feature-title">Add from Any Page</p>
+          <p className="help-feature-desc">Highlight text, right-click, and choose <strong>Add to Calendar with InstaCal</strong>.</p>
         </div>
       </div>
     </div>

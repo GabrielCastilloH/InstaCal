@@ -50,10 +50,22 @@ function injectPanel(eventId: string, calendarId: string) {
     mount.id = 'instacal-mount';
     shadow.appendChild(mount);
 
-    // Wait for content-ui.js to finish mounting React, then open the panel
+    // Wait for content-ui.js to finish mounting React, then open the panel.
+    // If content-ui.js never loads (e.g. stale tab that missed the manifest injection),
+    // show a reload prompt after 2s rather than silently doing nothing.
+    const timeoutId = setTimeout(() => {
+      const editBtn = document.getElementById(EDIT_BTN_ID) as HTMLElement | null;
+      if (editBtn) {
+        editBtn.textContent = '↻ Reload page';
+        editBtn.style.background = '#c43b49';
+      }
+      host!.remove();
+    }, 2000);
+
     host.addEventListener(
       'instacal:ui-ready',
       () => {
+        clearTimeout(timeoutId);
         host!.dispatchEvent(new CustomEvent('instacal:open-panel', { detail: { eventId, calendarId } }));
       },
       { once: true },

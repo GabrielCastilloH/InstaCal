@@ -5,7 +5,6 @@ import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
 import PreferencesPage from "./components/PreferencesPage";
 import { DEFAULT_PREFS, type Prefs } from "./services/prefs";
-import CoffeePage from "./components/CoffeePage";
 import PeoplePage from "./components/PeoplePage";
 import { loadPeople, savePeople, upsertPerson, type Person } from "./utils/people";
 import { PREF_KEY, FIREBASE_TOKEN_EXPIRY_MS } from "./constants";
@@ -317,11 +316,17 @@ function App() {
   if (settingsPage === "preferences") {
     return <PreferencesPage onBack={() => setSettingsPage("settings")} />;
   }
-  if (settingsPage === "people" && user) {
-    return <PeoplePage onBack={() => setSettingsPage("settings")} uid={user.uid} />;
-  }
-  if (settingsPage === "coffee") {
-    return <CoffeePage onBack={() => setSettingsPage("settings")} />;
+  if (settingsPage === "people") {
+    if (user) {
+      return <PeoplePage onBack={() => setSettingsPage("settings")} uid={user.uid} />;
+    }
+    // Auth not ready — show settings hub as fallback instead of falling through to main popup
+    return (
+      <SettingsPage
+        onBack={() => setSettingsPage(null)}
+        onNavigate={(page) => setSettingsPage(page)}
+      />
+    );
   }
 
   const gearButton = (

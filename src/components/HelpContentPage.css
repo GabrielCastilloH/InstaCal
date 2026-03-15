@@ -100,14 +100,45 @@
   width: 100%;
   height: 1px;
   background-color: var(--color-border);
-  margin: 12px 0 4px;
+  margin: 12px 0 8px;
 }
 
-.help-feature-label {
-  margin: 0 0 6px;
-  font-size: 10.5px;
+.help-feature-card {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.help-feature-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background-color: var(--color-bg-subtle);
+  color: var(--color-interactive-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-feature-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.help-feature-title {
+  margin: 0;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-primary-700);
+  color: var(--color-text-primary);
+}
+
+.help-feature-desc {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
 }
