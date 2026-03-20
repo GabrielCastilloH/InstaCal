@@ -28,14 +28,15 @@ export async function getFirebaseIdToken(): Promise<string | null> {
  * Chrome manages token refresh invisibly — no expiry tracking needed.
  */
 export async function getGoogleCalendarToken(interactive = false): Promise<string | null> {
-  return new Promise((resolve) => {
-    chrome.identity.getAuthToken({ interactive }, (result) => {
-      if (chrome.runtime.lastError || !result?.token) {
-        console.error('[InstaCal] getAuthToken failed (interactive=' + interactive + '):', chrome.runtime.lastError?.message ?? 'no token returned')
-        resolve(null)
-      } else {
-        resolve(result.token)
-      }
-    })
-  })
+  try {
+    const result = await chrome.identity.getAuthToken({ interactive })
+    if (!result?.token) {
+      console.error('[InstaCal] getAuthToken returned no token (interactive=' + interactive + ')', result)
+      return null
+    }
+    return result.token
+  } catch (err) {
+    console.error('[InstaCal] getAuthToken threw (interactive=' + interactive + '):', err instanceof Error ? err.message : String(err))
+    return null
+  }
 }

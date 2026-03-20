@@ -99,36 +99,53 @@ export async function fetchAvailability(
     timeMax.setDate(timeMax.getDate() + 7)
   }
 
+  console.log('[InstaCal] fetchAvailability start', {
+    timeMin: timeMin.toISOString(),
+    timeMax: timeMax.toISOString(),
+    dayStartTime,
+    dayEndTime,
+    tokenPrefix: googleToken.slice(0, 10) + '…',
+  })
+
+  const requestBody = {
+    timeMin: timeMin.toISOString(),
+    timeMax: timeMax.toISOString(),
+    items: [{ id: 'primary' }],
+  }
+
   const response = await fetch(FREEBUSY_API, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${googleToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      timeMin: timeMin.toISOString(),
-      timeMax: timeMax.toISOString(),
-      items: [{ id: 'primary' }],
-    }),
+    body: JSON.stringify(requestBody),
   })
+
+  console.log('[InstaCal] freeBusy response status:', response.status)
 
   if (!response.ok) {
     const body = await response.text().catch(() => '')
-    console.error('InstaCal freeBusy error:', response.status, body)
+    console.error('[InstaCal] freeBusy error body:', body)
     throw new Error(`Google Calendar API error ${response.status}: ${body}`)
   }
 
   const data = await response.json()
+  console.log('[InstaCal] freeBusy raw data:', JSON.stringify(data))
+
   const busy: Slot[] = (data.calendars?.primary?.busy ?? []).map(
     (b: { start: string; end: string }) => ({
       start: new Date(new Date(b.start).getTime() - EVENT_BUFFER_MS),
       end: new Date(new Date(b.end).getTime() + EVENT_BUFFER_MS),
     })
   )
+  console.log('[InstaCal] busy slots (buffered):', busy.map(b => ({ start: b.start.toISOString(), end: b.end.toISOString() })))
 
   const tzAbbr = getTzAbbr()
   const numDays = Math.round((timeMax.getTime() - timeMin.getTime()) / (24 * 60 * 60 * 1000))
   const lines: string[] = []
+
+  console.log('[InstaCal] processing', numDays, 'days, tz:', tzAbbr)
 
   for (let i = 0; i < numDays; i++) {
     const day = new Date(timeMin)
@@ -143,9 +160,13 @@ export async function fetchAvailability(
     dayEnd.setHours(eh, em, 0, 0)
 
     const windowStart = i === 0 && now > dayStart ? roundUpTo15(now) : dayStart
-    if (windowStart >= dayEnd) continue
+    if (windowStart >= dayEnd) {
+      console.log('[InstaCal] day', i, 'skipped: windowStart >= dayEnd', windowStart.toISOString(), dayEnd.toISOString())
+      continue
+    }
 
     const slots = freeSlots(busy, windowStart, dayEnd)
+    console.log('[InstaCal] day', i, formatDate(day), '- slots:', slots.length, slots.map(s => `${formatTime(s.start)}-${formatTime(s.end)}`))
     if (slots.length === 0) continue
 
     const slotStr = slots
@@ -155,6 +176,7 @@ export async function fetchAvailability(
     lines.push(`• ${formatDate(day)}: ${slotStr} ${tzAbbr}`)
   }
 
+  console.log('[InstaCal] fetchAvailability result lines:', lines.length)
   if (lines.length === 0) return 'No availability found for the selected dates.'
   return lines.join('\n')
 }
