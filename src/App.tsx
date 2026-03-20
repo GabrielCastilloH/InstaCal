@@ -59,10 +59,10 @@ function App() {
   const [copyStatus, setCopyStatus] = useState<"idle" | "loading" | "copied" | "error">("idle");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [availStart, setAvailStart] = useState<Date>(() => {
-    const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 1); return d;
   });
   const [availEnd, setAvailEnd] = useState<Date>(() => {
-    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 6); return d;
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 7); return d;
   });
 
   // Unknown person resolution queue

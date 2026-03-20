@@ -486,7 +486,8 @@ async function handleGetAvailability(message: {
         const dayStart = new Date(day); dayStart.setHours(sh, sm, 0, 0);
         const { h: eh, m: em } = parseHHMM(message.dayEndTime);
         const dayEnd = new Date(day); dayEnd.setHours(eh, em, 0, 0);
-        const windowStart = i === 0 && now > dayStart ? roundUpTo15(now) : dayStart;
+        const isToday = day.toDateString() === now.toDateString();
+        const windowStart = isToday && now > dayStart ? roundUpTo15(now) : dayStart;
         if (windowStart >= dayEnd) { console.log('[InstaCal] day', i, 'skipped (window past end)'); continue; }
         const slots = freeSlots(busy, windowStart, dayEnd);
         console.log('[InstaCal] day', i, formatDate(day), slots.length, 'slots');
