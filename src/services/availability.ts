@@ -159,7 +159,8 @@ export async function fetchAvailability(
     const dayEnd = new Date(day)
     dayEnd.setHours(eh, em, 0, 0)
 
-    const windowStart = i === 0 && now > dayStart ? roundUpTo15(now) : dayStart
+    const isToday = day.toDateString() === now.toDateString()
+    const windowStart = isToday && now > dayStart ? roundUpTo15(now) : dayStart
     if (windowStart >= dayEnd) {
       console.log('[InstaCal] day', i, 'skipped: windowStart >= dayEnd', windowStart.toISOString(), dayEnd.toISOString())
       continue

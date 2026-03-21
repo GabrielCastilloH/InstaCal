@@ -71,4 +71,63 @@ describe('DateRangePicker', () => {
     expect(screen.getByText(/Mar 4/)).toBeInTheDocument()
     expect(screen.getByText(/Mar 8/)).toBeInTheDocument()
   })
+
+  // ─── Date-selection interactions ─────────────────────────────────────────
+
+  it('two-phase selection: clicking start then end calls onApply with correct dates', async () => {
+    const onApply = vi.fn()
+    const { user } = setup({ onApply })
+    // Phase 1: pick start = March 10
+    await user.click(screen.getAllByRole('button', { name: '10' })[0])
+    // Phase 2: pick end = March 14
+    await user.click(screen.getAllByRole('button', { name: '14' })[0])
+    await user.click(screen.getByRole('button', { name: 'Copy' }))
+    const [s, e] = onApply.mock.calls[0] as [Date, Date]
+    expect(s.getDate()).toBe(10)
+    expect(s.getMonth()).toBe(2) // March = 2
+    expect(e.getDate()).toBe(14)
+  })
+
+  it('reverses the range when end click is before start', async () => {
+    const onApply = vi.fn()
+    const { user } = setup({ onApply })
+    // Click 20 first (start phase), then 10 (end phase — before start)
+    await user.click(screen.getAllByRole('button', { name: '20' })[0])
+    await user.click(screen.getAllByRole('button', { name: '10' })[0])
+    await user.click(screen.getByRole('button', { name: 'Copy' }))
+    const [s, e] = onApply.mock.calls[0] as [Date, Date]
+    expect(s.getDate()).toBe(10)
+    expect(e.getDate()).toBe(20)
+  })
+
+  it('single-day selection: start equals end when same day clicked twice', async () => {
+    const onApply = vi.fn()
+    const { user } = setup({ onApply })
+    await user.click(screen.getAllByRole('button', { name: '15' })[0]) // phase 1 → start+end = 15
+    await user.click(screen.getAllByRole('button', { name: '15' })[0]) // phase 2 → end = 15
+    await user.click(screen.getByRole('button', { name: 'Copy' }))
+    const [s, e] = onApply.mock.calls[0] as [Date, Date]
+    expect(s.getDate()).toBe(15)
+    expect(e.getDate()).toBe(15)
+  })
+
+  it('caps the end date at MAX_DAYS (14) from the start', async () => {
+    const onApply = vi.fn()
+    const { user } = setup({ onApply })
+    // Start = March 1, End attempt = March 31 → should be capped at March 14
+    await user.click(screen.getAllByRole('button', { name: '1' })[0])
+    await user.click(screen.getAllByRole('button', { name: '31' })[0])
+    await user.click(screen.getByRole('button', { name: 'Copy' }))
+    const [s, e] = onApply.mock.calls[0] as [Date, Date]
+    expect(s.getDate()).toBe(1)
+    expect(e.getDate()).toBe(14) // March 1 + 13 days = March 14
+  })
+
+  it('updates the range label after selecting new dates', async () => {
+    const { user } = setup()
+    await user.click(screen.getAllByRole('button', { name: '12' })[0])
+    await user.click(screen.getAllByRole('button', { name: '16' })[0])
+    expect(screen.getByText(/Mar 12/)).toBeInTheDocument()
+    expect(screen.getByText(/Mar 16/)).toBeInTheDocument()
+  })
 })
