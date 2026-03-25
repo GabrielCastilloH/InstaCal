@@ -43,3 +43,14 @@ After any Vite config change, run `npm run build` and confirm `dist/` contains:
 - `colors.css`
 - `auth.html`
 - `index.html`
+
+## Keeping docs current
+The `docs/` folder has five files — update the relevant one(s) whenever a change affects what they describe:
+
+| File | Update when... |
+|------|---------------|
+| `docs/ARCHITECTURE.md` | Entry points, data flows, token storage, or key source files change |
+| `docs/DEVELOPMENT.md` | Build steps, env vars, scripts, or tooling change |
+| `docs/API.md` | Backend endpoint shape, auth scheme, or request/response fields change |
+| `docs/DECISIONS.md` | A significant design decision is made or an existing one is revisited |
+| `docs/TESTING.md` | Test commands, coverage targets, or manual checklist flows change |

@@ -55,7 +55,7 @@ export default defineConfig({
       transformIndexHtml() {
         return [{ tag: 'style', children: generateColorsCss(), injectTo: 'head-prepend' }]
       },
-      // Emit dist/colors.css for auth.html (public/ page, references it via <link>)
+      // Emit dist/colors.css for use by content scripts injected into external pages
       generateBundle() {
         this.emitFile({
           type: 'asset',
@@ -112,14 +112,14 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         background: resolve(__dirname, 'src/background.ts'),
-        auth: resolve(__dirname, 'src/auth.ts'),
         content: resolve(__dirname, 'src/content.ts'),
+        'keyboard-guard': resolve(__dirname, 'src/keyboard-guard.ts'),
         // content-ui is intentionally omitted here — the bundle-content-ui
         // plugin above builds it as a self-contained IIFE via esbuild.
       },
       output: {
         entryFileNames: (chunk) =>
-          ['background', 'auth', 'content'].includes(chunk.name)
+          ['background', 'content', 'keyboard-guard'].includes(chunk.name)
             ? '[name].js'
             : 'assets/[name]-[hash].js',
       },

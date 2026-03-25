@@ -5,18 +5,15 @@ import SettingsPage from "./components/SettingsPage";
 import HelpContentPage from "./components/HelpContentPage";
 import PreferencesPage from "./components/PreferencesPage";
 import { DEFAULT_PREFS, type Prefs } from "./services/prefs";
-import CoffeePage from "./components/CoffeePage";
 import PeoplePage from "./components/PeoplePage";
 import { loadPeople, savePeople, upsertPerson, type Person } from "./utils/people";
 import { PREF_KEY, FIREBASE_TOKEN_EXPIRY_MS } from "./constants";
 import UnknownPersonModal from "./components/UnknownPersonModal";
 import PageHeader from "./components/PageHeader";
-import SignIn from "./components/SignIn";
 import { parseEvent, isAllDayEvent, type ParsedEvent } from "./services/parseEvent";
-import { getFirebaseIdToken, getGoogleCalendarToken, clearGoogleCalendarToken } from "./services/auth";
+import { getFirebaseIdToken, getGoogleCalendarToken } from "./services/auth";
 import { createCalendarEvent } from "./services/calendar";
 import { syncPeopleOnInit, savePeopleToFirestore } from "./services/firestorePeople";
-import { fetchAvailability } from "./services/availability";
 import DateRangePicker from "./components/DateRangePicker";
 import "./App.css";
 
@@ -62,10 +59,10 @@ function App() {
   const [copyStatus, setCopyStatus] = useState<"idle" | "loading" | "copied" | "error">("idle");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [availStart, setAvailStart] = useState<Date>(() => {
-    const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 1); return d;
   });
   const [availEnd, setAvailEnd] = useState<Date>(() => {
-    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 6); return d;
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 7); return d;
   });
 
   // Unknown person resolution queue
@@ -77,89 +74,122 @@ function App() {
     let cancelled = false;
 
     async function init() {
-      // Store config values so background.js can silently refresh tokens without opening the popup
-      chrome.storage.local.set({
-        'instacal_google_client_id': import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string,
-        'instacal_firebase_api_key': import.meta.env.VITE_FIREBASE_API_KEY as string,
-      });
+      try {
+        // Store config values so background.js can use them for Firebase token refresh
+        chrome.storage.local.set({
+          'instacal_firebase_api_key': import.meta.env.VITE_FIREBASE_API_KEY as string,
+        });
 
-      // Check for a stored Google token and re-authenticate
-      const googleToken = await getGoogleCalendarToken();
-      if (googleToken) {
-        try {
-          const credential = GoogleAuthProvider.credential(null, googleToken);
-          const result = await signInWithCredential(auth, credential);
-          // Cache tokens for background service worker
-          const idToken = await result.user.getIdToken();
-          chrome.storage.local.set({
-            instacal_firebase_id_token: idToken,
-            instacal_firebase_id_token_expiry: Date.now() + FIREBASE_TOKEN_EXPIRY_MS,
-            instacal_firebase_refresh_token: result.user.refreshToken,
-            instacal_firebase_api_key: import.meta.env.VITE_FIREBASE_API_KEY as string,
-            instacal_backend_url: (import.meta.env.VITE_CLOUD_FUNCTION_URL as string) ?? '',
-          });
-          if (!cancelled) {
-            setUser(result.user);
-            setAuthLoading(false);
+        // Wait for Firebase to restore persisted auth state from IndexedDB before
+        // checking currentUser — without this, currentUser is always null on startup.
+        await auth.authStateReady();
 
-            // Merge local + Firestore people lists and sync both ways
-            syncPeopleOnInit(result.user.uid).then((merged) => {
-              if (!cancelled && merged.length > 0) setPeople(merged);
-            }).catch(() => {});
-
-            // Persist display name to prefs on first sign-in (user can override in Preferences)
-            const displayName = result.user.displayName;
-            if (displayName) {
-              chrome.storage.local.get([PREF_KEY], (r) => {
-                const existing = (r[PREF_KEY] as Partial<Prefs>) ?? {};
-                if (!existing.userName) {
-                  const merged = { ...DEFAULT_PREFS, ...existing, userName: displayName };
-                  chrome.storage.local.set({ [PREF_KEY]: merged });
-                  if (!cancelled) setPrefs(merged);
-                }
-              });
-            }
-
-            // Pre-fill textarea if opened via context menu
-            const stored = await new Promise<{ [key: string]: unknown }>((resolve) =>
-              chrome.storage.local.get(['instacal_context_text'], (items) => resolve(items))
-            );
-            const contextText = stored['instacal_context_text'] as string | undefined;
-            chrome.storage.local.remove(['instacal_context_text']);
-            if (contextText && inputRef.current) {
-              inputRef.current.value = contextText;
-              inputRef.current.focus();
-              inputRef.current.selectionStart = inputRef.current.selectionEnd = contextText.length;
-            }
-          }
-          return;
-        } catch {
-          await clearGoogleCalendarToken();
+        // Try silent token first — Chrome returns it instantly when already authorised,
+        // avoiding an unnecessary OAuth prompt on every popup open.
+        // Only go interactive if we have no cached token or no Firebase session.
+        const alreadySignedIn = !!auth.currentUser;
+        let googleToken = await getGoogleCalendarToken(false);
+        if (!googleToken || !alreadySignedIn) {
+          googleToken = await getGoogleCalendarToken(true);
         }
-      }
+        if (!googleToken) {
+          console.error('[InstaCal] init: getGoogleCalendarToken returned null');
+          if (!cancelled) { setUser(null); setAuthLoading(false); }
+          return;
+        }
 
-      if (!cancelled) {
-        setUser(null);
-        setAuthLoading(false);
+        // If Firebase already has a user (restored from IndexedDB), skip sign-in.
+        // Otherwise sign in with the Google access token.
+        let firebaseUser = auth.currentUser;
+        if (!firebaseUser) {
+          try {
+            const credential = GoogleAuthProvider.credential(null, googleToken);
+            const result = await signInWithCredential(auth, credential);
+            firebaseUser = result.user;
+          } catch (err) {
+            console.error('[InstaCal] signInWithCredential failed:', err);
+          }
+        }
+
+        if (!firebaseUser) {
+          if (!cancelled) { setUser(null); setAuthLoading(false); }
+          return;
+        }
+
+        // Get Firebase ID token. If the stored refresh token was revoked (e.g. password
+        // change), getIdToken() throws — recover by forcing a fresh sign-in.
+        let idToken: string;
+        try {
+          idToken = await firebaseUser.getIdToken();
+        } catch (tokenErr) {
+          console.error('[InstaCal] getIdToken failed, re-authenticating:', tokenErr);
+          try {
+            const freshGoogleToken = await getGoogleCalendarToken(true);
+            if (!freshGoogleToken) throw new Error('no google token');
+            const credential = GoogleAuthProvider.credential(null, freshGoogleToken);
+            const result = await signInWithCredential(auth, credential);
+            firebaseUser = result.user;
+            idToken = await firebaseUser.getIdToken();
+          } catch (reAuthErr) {
+            console.error('[InstaCal] re-auth failed:', reAuthErr);
+            if (!cancelled) { setUser(null); setAuthLoading(false); }
+            return;
+          }
+        }
+
+        // Cache tokens for background service worker
+        chrome.storage.local.set({
+          instacal_firebase_id_token: idToken,
+          instacal_firebase_id_token_expiry: Date.now() + FIREBASE_TOKEN_EXPIRY_MS,
+          instacal_firebase_refresh_token: firebaseUser.refreshToken,
+          instacal_firebase_api_key: import.meta.env.VITE_FIREBASE_API_KEY as string,
+          instacal_backend_url: (import.meta.env.VITE_CLOUD_FUNCTION_URL as string) ?? '',
+        });
+
+        if (!cancelled) {
+          setUser(firebaseUser);
+          setAuthLoading(false);
+
+          // Merge local + Firestore people lists and sync both ways
+          syncPeopleOnInit(firebaseUser.uid).then((merged) => {
+            if (!cancelled && merged.length > 0) setPeople(merged);
+          }).catch(() => {});
+
+          // Persist display name to prefs on first sign-in (user can override in Preferences)
+          const displayName = firebaseUser.displayName;
+          if (displayName) {
+            chrome.storage.local.get([PREF_KEY], (r) => {
+              const existing = (r[PREF_KEY] as Partial<Prefs>) ?? {};
+              if (!existing.userName) {
+                const merged = { ...DEFAULT_PREFS, ...existing, userName: displayName };
+                chrome.storage.local.set({ [PREF_KEY]: merged });
+                if (!cancelled) setPrefs(merged);
+              }
+            });
+          }
+
+          // Pre-fill textarea if opened via context menu
+          const stored = await new Promise<{ [key: string]: unknown }>((resolve) =>
+            chrome.storage.local.get(['instacal_context_text'], (items) => resolve(items))
+          );
+          const contextText = stored['instacal_context_text'] as string | undefined;
+          chrome.storage.local.remove(['instacal_context_text']);
+          if (contextText && inputRef.current) {
+            inputRef.current.value = contextText;
+            inputRef.current.focus();
+            inputRef.current.selectionStart = inputRef.current.selectionEnd = contextText.length;
+          }
+        }
+      } catch (err) {
+        console.error('[InstaCal] init error:', err);
+        if (!cancelled) { setUser(null); setAuthLoading(false); }
       }
     }
 
     init();
 
-    // Re-run auth when the token is written by the auth tab after sign-in
-    function onStorageChanged(
-      changes: Record<string, chrome.storage.StorageChange>,
-      area: string,
-    ) {
-      if (area === "local" && changes["instacal_google_calendar_token"]?.newValue) {
-        init();
-      }
-    }
-    chrome.storage.onChanged.addListener(onStorageChanged);
-
     return () => {
       cancelled = true;
-      chrome.storage.onChanged.removeListener(onStorageChanged);
     };
   }, []);
 
@@ -229,12 +259,31 @@ function App() {
     setErrorMessage(undefined);
 
     try {
-      const idToken = await getFirebaseIdToken();
-      const calendarToken = await getGoogleCalendarToken();
+      // Try silent first; if Firebase user is gone, re-run the full init flow (interactive).
+      let idToken = await getFirebaseIdToken();
+      let calendarToken = await getGoogleCalendarToken();
+
+      if (!idToken || !calendarToken) {
+        // Re-attempt auth interactively (covers token expiry and first-run edge cases).
+        const googleToken = await getGoogleCalendarToken(true);
+        if (googleToken) {
+          try {
+            const credential = GoogleAuthProvider.credential(null, googleToken);
+            const result = await signInWithCredential(auth, credential);
+            setUser(result.user);
+            idToken = await result.user.getIdToken();
+            calendarToken = googleToken;
+          } catch {
+            // Firebase re-auth failed — calendarToken may still be usable below
+            calendarToken = googleToken;
+          }
+        }
+      }
+
       console.log('[InstaCal] handleAddEvent → idToken present:', !!idToken, '| calendarToken present:', !!calendarToken);
       if (!idToken || !calendarToken) {
         console.error('[InstaCal] Missing token — idToken:', !!idToken, 'calendarToken:', !!calendarToken);
-        throw new Error("Not authenticated");
+        throw new Error("Sign-in required. Please close and reopen the extension.");
       }
 
       const peopleContacts = people.map((p) => ({
@@ -295,20 +344,42 @@ function App() {
   }
 
   async function handleExportAvailability(start: Date, end: Date) {
+    console.log('[InstaCal] handleExportAvailability called', { start: start.toISOString(), end: end.toISOString() });
     setShowDatePicker(false);
     setCopyStatus("loading");
-    try {
-      const calendarToken = await getGoogleCalendarToken();
-      if (!calendarToken) throw new Error("Not authenticated");
-      const text = await fetchAvailability(calendarToken, start, end, prefs.availabilityStart, prefs.availabilityEnd);
-      await navigator.clipboard.writeText(text);
-      setCopyStatus("copied");
-      setTimeout(() => setCopyStatus("idle"), 2000);
-    } catch (err) {
-      console.error('InstaCal availability error:', err);
-      setCopyStatus("error");
-      setTimeout(() => setCopyStatus("idle"), 3000);
-    }
+
+    const timeMin = new Date(start); timeMin.setHours(0, 0, 0, 0);
+    const timeMax = new Date(end);   timeMax.setHours(23, 59, 59, 999);
+
+    console.log('[InstaCal] sending getAvailability to background', { timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString() });
+    chrome.runtime.sendMessage(
+      {
+        action: 'getAvailability',
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        dayStartTime: prefs.availabilityStart,
+        dayEndTime: prefs.availabilityEnd,
+      },
+      async (result: { success: boolean; text?: string; error?: string } | undefined) => {
+        console.log('[InstaCal] getAvailability response:', result);
+        if (!result?.success || !result.text) {
+          console.error('[InstaCal] availability failed:', result?.error);
+          setCopyStatus("error");
+          setTimeout(() => setCopyStatus("idle"), 3000);
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(result.text);
+          console.log('[InstaCal] clipboard write succeeded');
+          setCopyStatus("copied");
+          setTimeout(() => setCopyStatus("idle"), 2000);
+        } catch (err) {
+          console.error('[InstaCal] clipboard write failed:', err);
+          setCopyStatus("error");
+          setTimeout(() => setCopyStatus("idle"), 3000);
+        }
+      }
+    );
   }
 
   function handleDatePickerApply(start: Date, end: Date) {
@@ -317,30 +388,22 @@ function App() {
     handleExportAvailability(start, end);
   }
 
-  if (!authLoading && !user) {
-    return <SignIn />;
-  }
-
-  if (user && settingsPage === "settings") {
+  if (settingsPage === "settings") {
     return (
       <SettingsPage
         onBack={() => setSettingsPage(null)}
         onNavigate={(page) => setSettingsPage(page)}
-        onSignOut={() => { setUser(null); setSettingsPage(null); }}
       />
     );
   }
-  if (user && settingsPage === "help") {
+  if (settingsPage === "help") {
     return <HelpContentPage onBack={() => setSettingsPage("settings")} />;
   }
-  if (user && settingsPage === "preferences") {
+  if (settingsPage === "preferences") {
     return <PreferencesPage onBack={() => setSettingsPage("settings")} />;
   }
-  if (user && settingsPage === "people") {
-    return <PeoplePage onBack={() => setSettingsPage("settings")} uid={user.uid} />;
-  }
-  if (user && settingsPage === "coffee") {
-    return <CoffeePage onBack={() => setSettingsPage("settings")} />;
+  if (settingsPage === "people") {
+    return <PeoplePage onBack={() => setSettingsPage("settings")} uid={user?.uid} />;
   }
 
   const gearButton = (

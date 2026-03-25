@@ -20,6 +20,12 @@
   "content_scripts": [
     {
       "matches": ["https://calendar.google.com/*"],
+      "js": ["keyboard-guard.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://calendar.google.com/*"],
       "js": ["content.js", "content-ui.js"],
       "run_at": "document_idle"
     }
@@ -41,5 +47,15 @@
   "background": {
     "service_worker": "background.js",
     "type": "module"
+  },
+  "oauth2": {
+    "client_id": "878814402366-otdulso603jtlp5j8mo3c8kt6a7fdutl.apps.googleusercontent.com",
+    "scopes": [
+      "openid",
+      "email",
+      "profile",
+      "https://www.googleapis.com/auth/calendar.events",
+      "https://www.googleapis.com/auth/calendar.freebusy"
+    ]
   }
 }

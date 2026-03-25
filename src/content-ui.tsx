@@ -101,13 +101,26 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
     host.dispatchEvent(new CustomEvent('instacal:panel-closed'));
   }
 
+  // Signal the main-world keyboard-guard.js script (which runs before GCal's
+  // handlers) about whether our panel is open, so it can block GCal shortcuts.
+  useEffect(() => {
+    if (open) {
+      host.setAttribute('data-open', '');
+      console.log('[InstaCal content-ui] data-open SET on host');
+    } else {
+      host.removeAttribute('data-open');
+      console.log('[InstaCal content-ui] data-open REMOVED from host');
+    }
+  }, [open, host]);
+
+  // Handle Escape to close the panel.
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') handleClose();
     }
-    document.addEventListener('keydown', onKey, true);
-    return () => document.removeEventListener('keydown', onKey, true);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
 
   async function applyPatch(patch: PendingPatch, attendees: Array<{ email: string; name: string }>) {
@@ -272,7 +285,7 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
           )}
 
           {flowState === 'success' && (
-            <p className="instacal-success">\u2713 Event updated! Reloading\u2026</p>
+            <p className="instacal-success">Event updated!</p>
           )}
 
           {flowState === 'error' && (

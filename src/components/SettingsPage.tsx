@@ -1,6 +1,3 @@
-import { signOut } from "firebase/auth";
-import { auth } from "../lib/firebase";
-import { clearGoogleCalendarToken } from "../services/auth";
 import PageHeader from "./PageHeader";
 import SettingsFooter from "./SettingsFooter";
 import "./SettingsPage.css";
@@ -10,7 +7,6 @@ type SettingsSubPage = "help" | "preferences" | "people" | "coffee";
 interface SettingsPageProps {
   onBack: () => void;
   onNavigate: (page: SettingsSubPage) => void;
-  onSignOut: () => void;
 }
 
 const InfoIcon = () => (
@@ -106,14 +102,7 @@ const ChevronRight = () => (
 export default function SettingsPage({
   onBack,
   onNavigate,
-  onSignOut,
 }: SettingsPageProps) {
-  async function handleSignOut() {
-    await clearGoogleCalendarToken();
-    await signOut(auth);
-    onSignOut();
-  }
-
   const backButton = (
     <button className="back-btn" onClick={onBack} aria-label="Back">
       <svg
@@ -175,9 +164,6 @@ export default function SettingsPage({
           <span className="settings-row-chevron">
             <ChevronRight />
           </span>
-        </button>
-        <button className="settings-signout-btn" onClick={handleSignOut}>
-          Sign out
         </button>
       </div>
 

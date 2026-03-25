@@ -16,7 +16,11 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+.cursor
 .DS_Store
+
+# Local tool config
+.claude
 *.suo
 *.ntvs*
 *.njsproj
@@ -31,3 +35,12 @@ functions/.env.local
 functions/lib
 
 /tmp
+
+# Test coverage
+coverage
+
+# Playwright
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache

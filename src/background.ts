@@ -50,23 +50,34 @@ function getFromStorage(keys: string | string[]): Promise<Record<string, any>> {
 
 // --- Auth helpers ---
 
+async function getGoogleToken(): Promise<string | null> {
+    try {
+        const result = await chrome.identity.getAuthToken({ interactive: false });
+        return result?.token ?? null;
+    } catch (err) {
+        console.warn('[InstaCal] getGoogleToken failed:', err instanceof Error ? err.message : String(err));
+        return null;
+    }
+}
+
+function evictGoogleToken(token: string): Promise<void> {
+    return chrome.identity.removeCachedAuthToken({ token });
+}
+
 async function getTokens() {
+    const calendarToken = await getGoogleToken();
+    if (!calendarToken) {
+        console.error('[InstaCal] Google Calendar token unavailable');
+        return null;
+    }
+
     const result = await getFromStorage([
-        'instacal_google_calendar_token',
-        'instacal_google_calendar_token_expiry',
         'instacal_firebase_id_token',
         'instacal_firebase_id_token_expiry',
         'instacal_firebase_refresh_token',
         'instacal_firebase_api_key',
         'instacal_backend_url',
     ]);
-
-    const calendarToken = result.instacal_google_calendar_token;
-    const calendarExpiry = result.instacal_google_calendar_token_expiry;
-    if (!calendarToken || (calendarExpiry && Date.now() >= calendarExpiry - TOKEN_EXPIRY_BUFFER_MS)) {
-        console.error('[InstaCal] Google Calendar token missing or expired');
-        return null;
-    }
 
     let firebaseToken = result.instacal_firebase_id_token;
     const firebaseExpiry = result.instacal_firebase_id_token_expiry;
@@ -182,11 +193,22 @@ async function createCalendarEvent(token: string, event: Record<string, any>) {
             ...(event.recurrence != null && { recurrence: [`RRULE:${event.recurrence}`] }),
           };
 
-    const response = await fetch(CALENDAR_API, {
+    const doFetch = (t: string) => fetch(CALENDAR_API, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
+
+    let response = await doFetch(token);
+
+    // Stale cached token — evict it and retry once with a fresh token.
+    if (response.status === 401) {
+        await evictGoogleToken(token);
+        const freshToken = await getGoogleToken();
+        if (!freshToken) throw new Error('Not authenticated with Google Calendar');
+        response = await doFetch(freshToken);
+    }
+
     if (!response.ok) {
         const text = await response.text();
         throw new Error(`Google Calendar API error ${response.status}: ${text}`);
@@ -358,16 +380,124 @@ async function handlePatchCalendarEvent(message: {
 
     const patchUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(message.calendarId)}/events/${encodeURIComponent(message.eventId)}`;
     console.log('[InstaCal] PATCH', patchUrl, JSON.stringify(patchBody));
-    const patchResp = await fetch(patchUrl, {
+    const doFetch = (t: string) => fetch(patchUrl, {
         method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${tokens.calendarToken}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(patchBody),
     });
+    let patchResp = await doFetch(tokens.calendarToken);
+    if (patchResp.status === 401) {
+        await evictGoogleToken(tokens.calendarToken);
+        const freshToken = await getGoogleToken();
+        if (!freshToken) throw new Error('Not authenticated with Google Calendar');
+        patchResp = await doFetch(freshToken);
+    }
     if (!patchResp.ok) {
         const body = await patchResp.text();
         throw new Error(`Calendar API error ${patchResp.status}: ${body}`);
     }
     return { success: true };
+}
+
+async function handleGetAvailability(message: {
+    timeMin: string;
+    timeMax: string;
+    dayStartTime: string;
+    dayEndTime: string;
+}): Promise<{ success: true; text: string } | { success: false; error: string }> {
+    console.log('[InstaCal] handleGetAvailability', message);
+    const calendarToken = await getGoogleToken();
+    console.log('[InstaCal] calendarToken for availability:', calendarToken ? 'obtained' : 'null');
+    if (!calendarToken) return { success: false, error: 'Not authenticated with Google Calendar' };
+
+    const FREEBUSY_API = 'https://www.googleapis.com/calendar/v3/freeBusy';
+    const MIN_SLOT_MINUTES = 20;
+    const EVENT_BUFFER_MS = 10 * 60_000;
+
+    console.log('[InstaCal] calling freeBusy API', { timeMin: message.timeMin, timeMax: message.timeMax });
+    const freeBusyBody = JSON.stringify({ timeMin: message.timeMin, timeMax: message.timeMax, items: [{ id: 'primary' }] });
+    let activeToken = calendarToken;
+    const doFreeBusy = (t: string) => fetch(FREEBUSY_API, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
+        body: freeBusyBody,
+    });
+    let response = await doFreeBusy(activeToken);
+    if (response.status === 401) {
+        await evictGoogleToken(activeToken);
+        const freshToken = await getGoogleToken();
+        if (!freshToken) return { success: false, error: 'Not authenticated with Google Calendar' };
+        activeToken = freshToken;
+        response = await doFreeBusy(activeToken);
+    }
+    console.log('[InstaCal] freeBusy status:', response.status);
+    if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        console.error('[InstaCal] freeBusy error:', response.status, body);
+        return { success: false, error: `Google Calendar API error ${response.status}: ${body}` };
+    }
+
+    const data = await response.json();
+    console.log('[InstaCal] freeBusy data:', JSON.stringify(data));
+
+    interface Slot { start: Date; end: Date }
+    const busy: Slot[] = (data.calendars?.primary?.busy ?? []).map(
+        (b: { start: string; end: string }) => ({
+            start: new Date(new Date(b.start).getTime() - EVENT_BUFFER_MS),
+            end:   new Date(new Date(b.end).getTime()   + EVENT_BUFFER_MS),
+        })
+    );
+    console.log('[InstaCal] busy slots:', busy.length);
+
+    function parseHHMM(t: string) { const [h, m] = t.split(':').map(Number); return { h: h ?? 8, m: m ?? 0 }; }
+    function roundUpTo15(d: Date) { const ms = 15 * 60 * 1000; return new Date(Math.ceil(d.getTime() / ms) * ms); }
+    function formatTime(d: Date) { const h = d.getHours(); const m = d.getMinutes(); return `${h % 12 || 12}:${m.toString().padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`; }
+    const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    function ordinal(n: number) { const v = n % 100; return `${n}${(v>=11&&v<=13)?'th':['th','st','nd','rd'][n%10]??'th'}`; }
+    function formatDate(d: Date) { return `${DAY_NAMES[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${ordinal(d.getDate())}`; }
+    function getTzAbbr() {
+        try { return new Intl.DateTimeFormat('en-US', { timeZoneName: 'shortGeneric' as Intl.DateTimeFormatOptions['timeZoneName'] }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? ''; }
+        catch { return new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? ''; }
+    }
+    function freeSlots(busy: Slot[], windowStart: Date, windowEnd: Date): Slot[] {
+        const sorted = busy.filter(b => b.end > windowStart && b.start < windowEnd).sort((a,b) => a.start.getTime()-b.start.getTime());
+        const slots: Slot[] = []; let cursor = windowStart;
+        for (const b of sorted) {
+            if (b.start > cursor) { const end = b.start < windowEnd ? b.start : windowEnd; if (end.getTime()-cursor.getTime() >= MIN_SLOT_MINUTES*60_000) slots.push({start:cursor,end}); }
+            if (b.end > cursor) cursor = b.end;
+        }
+        if (cursor < windowEnd && windowEnd.getTime()-cursor.getTime() >= MIN_SLOT_MINUTES*60_000) slots.push({start:cursor,end:windowEnd});
+        return slots;
+    }
+
+    const now = new Date();
+    const timeMin = new Date(message.timeMin);
+    const timeMax = new Date(message.timeMax);
+    const numDays = Math.round((timeMax.getTime() - timeMin.getTime()) / (24*60*60*1000));
+    const tzAbbr  = getTzAbbr();
+    const lines: string[] = [];
+
+    console.log('[InstaCal] processing', numDays, 'days');
+    for (let i = 0; i < numDays; i++) {
+        const day = new Date(timeMin);
+        day.setDate(day.getDate() + i);
+        const { h: sh, m: sm } = parseHHMM(message.dayStartTime);
+        const dayStart = new Date(day); dayStart.setHours(sh, sm, 0, 0);
+        const { h: eh, m: em } = parseHHMM(message.dayEndTime);
+        const dayEnd = new Date(day); dayEnd.setHours(eh, em, 0, 0);
+        const isToday = day.toDateString() === now.toDateString();
+        const windowStart = isToday && now > dayStart ? roundUpTo15(now) : dayStart;
+        if (windowStart >= dayEnd) { console.log('[InstaCal] day', i, 'skipped (window past end)'); continue; }
+        const slots = freeSlots(busy, windowStart, dayEnd);
+        console.log('[InstaCal] day', i, formatDate(day), slots.length, 'slots');
+        if (slots.length === 0) continue;
+        lines.push(`• ${formatDate(day)}: ${slots.map(s => `${formatTime(s.start)} – ${formatTime(s.end)}`).join(' and ')} ${tzAbbr}`);
+    }
+
+    const text = lines.length === 0 ? 'No availability found for the selected dates.' : lines.join('\n');
+    console.log('[InstaCal] availability result:', JSON.stringify(text));
+    return { success: true, text };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -379,6 +509,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     if (message.action === 'patchCalendarEvent') {
         handlePatchCalendarEvent(message).then(sendResponse).catch((err: Error) => {
+            sendResponse({ success: false, error: err.message || 'Unknown error' });
+        });
+        return true;
+    }
+    if (message.action === 'getAvailability') {
+        handleGetAvailability(message).then(sendResponse).catch((err: Error) => {
             sendResponse({ success: false, error: err.message || 'Unknown error' });
         });
         return true;

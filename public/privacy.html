@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InstaCal — Privacy Policy</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 720px;
+      margin: 48px auto;
+      padding: 0 24px;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.8rem; margin-bottom: 4px; }
+    h2 { font-size: 1.1rem; margin-top: 2rem; }
+    p, li { font-size: 0.95rem; color: #333; }
+    ul { padding-left: 1.4rem; }
+    a { color: #1a73e8; }
+    .updated { color: #666; font-size: 0.85rem; margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>InstaCal Privacy Policy</h1>
+  <p class="updated">Last updated: March 22, 2026</p>
+
+  <p>InstaCal ("the extension") is a Chrome extension that lets you create and edit Google Calendar events using natural language. This policy explains what data is collected, how it is used, and your rights.</p>
+
+  <h2>1. Data We Collect</h2>
+  <ul>
+    <li><strong>Authentication tokens</strong> — A Google OAuth access token and Firebase ID/refresh tokens are stored locally in <code>chrome.storage.local</code> so the extension can make authorized API calls without the popup being open. These tokens are never transmitted to any server other than Google's APIs and the extension's own backend.</li>
+    <li><strong>Contacts</strong> — Names and email addresses that you explicitly add to your contacts list. These are stored locally and sent to the extension's backend only to resolve attendee names in event descriptions you create.</li>
+    <li><strong>User preferences</strong> — Settings such as default event duration, default location, and auto-review toggle. Stored locally only.</li>
+    <li><strong>Selected text</strong> — When you use the right-click context menu to create a calendar event, the selected text is sent to the extension's backend for natural language parsing. It is not stored beyond the duration of the request.</li>
+  </ul>
+
+  <h2>2. How Data Is Used</h2>
+  <p>All data is used solely to provide the extension's core functionality: creating and editing Google Calendar events. Specifically:</p>
+  <ul>
+    <li>Authentication tokens authorize calls to the Google Calendar API on your behalf.</li>
+    <li>Contacts and selected text are sent to the extension's backend (<code>us-central1-instacal-app.cloudfunctions.net</code>) to parse natural language and resolve attendee names.</li>
+    <li>No data is used for advertising, profiling, or any purpose unrelated to calendar management.</li>
+  </ul>
+
+  <h2>3. Data Sharing</h2>
+  <p>We do not sell, rent, or share your data with third parties. Data is transmitted only to:</p>
+  <ul>
+    <li><strong>Google APIs</strong> (<code>www.googleapis.com</code>) — to create and manage your calendar events.</li>
+    <li><strong>Firebase / Google</strong> (<code>identitytoolkit.googleapis.com</code>, <code>securetoken.googleapis.com</code>) — for authentication.</li>
+    <li><strong>The extension's own backend</strong> (<code>us-central1-instacal-app.cloudfunctions.net</code>) — for natural language parsing, accessible only with your authenticated Firebase ID token.</li>
+  </ul>
+
+  <h2>4. Data Storage</h2>
+  <p>Tokens and preferences are stored locally on your device using <code>chrome.storage.local</code>. No personal data is stored in a database controlled by InstaCal. Selected text is processed transiently and not retained after the API response.</p>
+
+  <h2>5. Remote Code</h2>
+  <p>The extension does not execute any remotely hosted code. All JavaScript is bundled inside the extension package. Network requests fetch data only — no executable code is fetched or evaluated at runtime.</p>
+
+  <h2>6. Your Rights</h2>
+  <p>You can remove all locally stored data at any time by uninstalling the extension or clearing extension storage in Chrome settings (<em>Settings → Privacy and security → Site settings → View permissions and data stored across sites</em>). Revoking Google account access removes the OAuth token and stops all Calendar API access.</p>
+
+  <h2>7. Changes to This Policy</h2>
+  <p>If this policy changes materially, the "Last updated" date above will be revised. Continued use of the extension after a policy change constitutes acceptance.</p>
+
+  <h2>8. Contact</h2>
+  <p>Questions? Open an issue or reach out via the Chrome Web Store support link on the extension's listing page.</p>
+</body>
+</html>
