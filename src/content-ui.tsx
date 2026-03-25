@@ -285,7 +285,7 @@ function EditPanelApp({ host }: { host: HTMLElement }) {
           )}
 
           {flowState === 'success' && (
-            <p className="instacal-success">\u2713 Event updated! Reloading\u2026</p>
+            <p className="instacal-success">Event updated!</p>
           )}
 
           {flowState === 'error' && (
