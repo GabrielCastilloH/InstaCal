@@ -113,12 +113,13 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         background: resolve(__dirname, 'src/background.ts'),
         content: resolve(__dirname, 'src/content.ts'),
+        'keyboard-guard': resolve(__dirname, 'src/keyboard-guard.ts'),
         // content-ui is intentionally omitted here — the bundle-content-ui
         // plugin above builds it as a self-contained IIFE via esbuild.
       },
       output: {
         entryFileNames: (chunk) =>
-          ['background', 'content'].includes(chunk.name)
+          ['background', 'content', 'keyboard-guard'].includes(chunk.name)
             ? '[name].js'
             : 'assets/[name]-[hash].js',
       },

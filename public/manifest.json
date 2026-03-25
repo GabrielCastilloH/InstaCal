@@ -20,6 +20,12 @@
   "content_scripts": [
     {
       "matches": ["https://calendar.google.com/*"],
+      "js": ["keyboard-guard.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://calendar.google.com/*"],
       "js": ["content.js", "content-ui.js"],
       "run_at": "document_idle"
     }
